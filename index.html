@@ -354,7 +354,12 @@
     text-transform: uppercase;
     pointer-events: none;
   }
-  .map-mini-card svg { width: 100%; display: block; height: auto; }
+  .map-mini-card svg {
+    width: 100%; display: block; height: auto;
+    /* Make the entire SVG bounding box clickable, not just rendered shapes */
+    pointer-events: bounding-box;
+  }
+  .map-mini-card svg * { pointer-events: none; }
   .legend-title {
     font-size: 10px; font-weight: 600;
     letter-spacing: 0.14em; text-transform: uppercase;
