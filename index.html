@@ -1825,12 +1825,15 @@ function buildBase() {
     defs.appendChild(grad);
   });
 
-  // Soft drop-shadow
-  const filter = svgEl('filter', { id: 'softShadow', x: '-20%', y: '-20%', width: '140%', height: '140%' });
-  filter.appendChild(svgEl('feGaussianBlur', { in: 'SourceAlpha', stdDeviation: '2' }));
-  filter.appendChild(svgEl('feOffset', { dx: '0', dy: '1', result: 'shadowOffset' }));
+  // Soft drop-shadow (subtle — just enough to lift Manhattan off the water)
+  const filter = svgEl('filter', { id: 'softShadow', x: '-10%', y: '-10%', width: '120%', height: '120%' });
+  filter.appendChild(svgEl('feGaussianBlur', { in: 'SourceAlpha', stdDeviation: '0.8' }));
+  filter.appendChild(svgEl('feOffset', { dx: '0', dy: '0.4', result: 'shadowOffset' }));
+  const colorMat = svgEl('feColorMatrix', { in: 'shadowOffset', type: 'matrix',
+    values: '0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.35 0', result: 'shadowColor' });
+  filter.appendChild(colorMat);
   const merge = svgEl('feMerge');
-  merge.appendChild(svgEl('feMergeNode'));
+  merge.appendChild(svgEl('feMergeNode', { in: 'shadowColor' }));
   merge.appendChild(svgEl('feMergeNode', { in: 'SourceGraphic' }));
   filter.appendChild(merge);
   defs.appendChild(filter);
@@ -1839,7 +1842,7 @@ function buildBase() {
 
   // Water background
   // Water — extends well beyond the SVG_W on the left to fill the wider viewBox
-  svg.appendChild(svgEl('rect', { x: -500, y: 0, width: SVG_W + 1000, height: SVG_H, fill: '#e8eaee' }));
+  svg.appendChild(svgEl('rect', { x: -500, y: 0, width: SVG_W + 1000, height: SVG_H, fill: '#c8d3e3' }));
 
   // Manhattan landmass
   svg.appendChild(svgEl('path', {
