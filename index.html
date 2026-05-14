@@ -209,11 +209,18 @@
   .play-pause.paused { background: var(--clay); border-color: var(--clay); }
   .play-pause.paused:hover { background: var(--clay-deep, #b85838); }
   #sliderValue {
-    font-family: var(--font-body);
-    color: var(--clay);
-    font-weight: 600;
-    font-size: 15px;
+    font-family: inherit;
+    color: inherit;
+    font-weight: inherit;
+    font-size: inherit;
     font-variant-numeric: tabular-nums;
+  }
+  .time-budget-label.travel-q {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1.2;
+    margin-bottom: 10px;
   }
   .time-budget-label {
     font-size: 15px;
@@ -719,7 +726,7 @@
     <div class="side-panel">
       <div class="controls">
         <div class="control-group">
-          <span class="time-budget-label">Travel Time · <span id="sliderValue">20</span> min</span>
+          <span class="time-budget-label travel-q">How far can I go in <span id="sliderValue">20</span> min?</span>
           <div class="slider-wrap">
             <input type="range" id="timeSlider" min="0" max="60" step="1" value="20">
             <div class="slider-marks">
