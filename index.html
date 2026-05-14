@@ -1,0 +1,2592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Time-distance map of Manhattan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-page:        #fdfbf6;
+    --bg-hero:        #f8f4eb;
+    --bg-card:        #fbf8f1;
+    --bg-card-warm:   #f6efde;
+    --ink:            #1d1b17;
+    --ink-secondary:  #2a2823;
+    --ink-muted:      #3d3a35;
+    --ink-faint:      #5d574e;
+    --border:         #948b78;
+    --border-light:   #c9bfa9;
+
+    --clay:           #d97757;
+    --clay-deep:      #b85838;
+    --teal:           #4a9aa0;
+    --teal-deep:      #2e6e74;
+    --slate:          #6b7d8f;
+
+    --walk:           #3d5fb8;
+    --subway:         #d97757;
+    --drive:          #4a9aa0;
+    --bike:           #8657a8;
+
+    --font-display:   'IBM Plex Sans', system-ui, sans-serif;
+    --font-body:      'IBM Plex Sans', system-ui, sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.55;
+    color: var(--ink);
+    background:
+      radial-gradient(ellipse 80% 40% at 50% 0%, rgba(217,119,87,0.06), transparent 60%),
+      radial-gradient(ellipse 60% 30% at 100% 100%, rgba(74,154,160,0.05), transparent 50%),
+      var(--bg-page);
+    background-attachment: fixed;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Topbar */
+  .topbar {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(247,243,236,0.92);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+    height: 54px;
+    display: flex; align-items: center;
+    padding: 0 48px;
+  }
+  .topbar-brand {
+    font-family: var(--font-display);
+    font-size: 13px; font-weight: 500;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--ink-secondary); text-decoration: none;
+  }
+  .topbar-meta {
+    margin-left: auto;
+    font-size: 12px; color: var(--ink-muted);
+  }
+
+  /* Hero */
+  .hero {
+    padding: 40px 48px 24px;
+    max-width: 1280px; margin: 0 auto;
+  }
+  .hero-label {
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--ink-muted);
+    margin-bottom: 18px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .hero-label::before {
+    content: ''; display: inline-block;
+    width: 24px; height: 1.5px;
+    background: var(--clay);
+  }
+  .hero h1, .hero-title {
+    font-family: var(--font-display);
+    font-size: clamp(36px, 5.2vw, 60px);
+    font-weight: 500; line-height: 1.05;
+    letter-spacing: -0.025em;
+    color: var(--ink);
+    max-width: 900px;
+    margin: 0;
+  }
+  .hero-subtitle {
+    font-family: var(--font-display);
+    font-size: clamp(17px, 2vw, 21px);
+    font-style: italic;
+    color: var(--ink-muted);
+    max-width: 640px;
+    line-height: 1.45;
+  }
+
+  /* Main tool */
+  .tool-wrap {
+    max-width: 1280px; margin: 0 auto;
+    padding: 24px 48px 80px;
+  }
+
+  /* Control bar — now stacked vertically inside the side panel */
+  .controls {
+    display: flex; flex-direction: column;
+    gap: 18px;
+    padding: 18px 20px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+  }
+  .control-group {
+    display: flex; flex-direction: column;
+    gap: 10px;
+  }
+  .control-label {
+    font-size: 10.5px; font-weight: 600;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+  .chip-row {
+    display: flex; flex-wrap: wrap; gap: 6px;
+  }
+  .chip {
+    font-family: var(--font-body);
+    font-size: 12.5px; font-weight: 500;
+    padding: 7px 13px;
+    border: 1px solid var(--border);
+    background: #fff;
+    color: var(--ink-secondary);
+    border-radius: 100px;
+    cursor: pointer;
+    transition: all 0.18s;
+  }
+  .chip:hover { border-color: var(--clay); color: var(--clay); }
+  .chip.active {
+    background: var(--ink);
+    color: #fff;
+    border-color: var(--ink);
+  }
+  .chip.mode-walk.active { background: var(--walk); border-color: var(--walk); }
+  .chip.mode-subway.active { background: var(--subway); border-color: var(--subway); }
+  .chip.mode-drive.active { background: var(--drive); border-color: var(--drive); }
+  .chip.mode-bike.active { background: var(--bike); border-color: var(--bike); }
+
+  .slider-wrap { display: flex; flex-direction: column; gap: 4px; }
+  #timeSlider {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+  #timeSlider::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 18px; height: 18px;
+    background: var(--clay);
+    border: 2px solid #fff;
+    border-radius: 50%;
+    box-shadow: 0 2px 6px rgba(29,27,23,0.18);
+    cursor: grab;
+  }
+  #timeSlider::-webkit-slider-thumb:active { cursor: grabbing; transform: scale(1.1); }
+  #timeSlider::-moz-range-thumb {
+    width: 16px; height: 16px;
+    background: var(--clay);
+    border: 2px solid #fff;
+    border-radius: 50%;
+    cursor: grab;
+  }
+  .slider-marks {
+    display: flex; justify-content: space-between;
+    font-size: 14px; color: var(--ink-secondary);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    padding: 4px 2px 0;
+  }
+  .play-pause {
+    margin-top: 8px;
+    align-self: flex-start;
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--font-body);
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 6px 12px 6px 10px;
+    background: var(--ink);
+    color: #fff;
+    border: 1px solid var(--ink);
+    border-radius: 100px;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+  }
+  .play-pause:hover { background: #3d3936; }
+  .play-pause:active { transform: scale(0.97); }
+  .play-pause .pp-icon { font-size: 11px; line-height: 1; }
+  .play-pause.paused { background: var(--clay); border-color: var(--clay); }
+  .play-pause.paused:hover { background: var(--clay-deep, #b85838); }
+  #sliderValue {
+    font-family: var(--font-body);
+    color: var(--clay);
+    font-weight: 600;
+    font-size: 15px;
+    font-variant-numeric: tabular-nums;
+  }
+  .time-budget-label {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ink);
+    letter-spacing: 0;
+    text-transform: none;
+    margin-bottom: 4px;
+  }
+  .tod-segments {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .tod-seg {
+    appearance: none;
+    background: transparent;
+    border: none;
+    border-right: 1px solid var(--border);
+    padding: 7px 4px;
+    font-family: var(--font-body);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--ink-secondary);
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+  }
+  .tod-seg:last-child { border-right: none; }
+  .tod-seg:hover { background: rgba(95,104,212,0.06); color: var(--ink); }
+  .tod-seg.is-current {
+    background: var(--ink);
+    color: #fff;
+    font-weight: 600;
+  }
+  #todLabel { color: var(--clay); font-weight: 600; }
+
+  /* Map layout */
+  .map-layout {
+    display: grid;
+    grid-template-columns: 1fr 240px;
+    gap: 28px;
+    align-items: start;
+  }
+  .map-container {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0;
+    position: relative;
+    overflow: hidden;
+  }
+  .map-svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    cursor: crosshair;
+  }
+
+  .legend {
+    position: absolute;
+    top: 24px; left: 24px;
+    background: rgba(252,250,244,0.94);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--ink-secondary);
+    max-width: 200px;
+    pointer-events: none;
+  }
+
+  .map-mode-box {
+    position: absolute;
+    top: 16px; left: 16px;
+    background: transparent;
+    border: none;
+    padding: 0;
+    z-index: 5;
+  }
+  .map-mode-label {
+    font-size: 10px; font-weight: 600;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 8px;
+  }
+  .map-mode-box .chip-row { gap: 4px; }
+  .map-minis {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    width: 560px;
+  }
+  .map-mini-card {
+    position: relative;
+    padding: 0 !important;
+    background: #f0f2f5;  /* matches the SVG water fill so the card body has no transparent gap */
+    border: 1px solid var(--border);
+    border-radius: 0;
+    cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    line-height: 0;
+    overflow: hidden;
+  }
+  .map-mini-card:hover {
+    border-color: #5F68D4;
+    box-shadow: 0 0 0 1px #5F68D4;
+  }
+  .map-mini-card.is-current {
+    border-color: rgba(95,104,212,0.8);
+    box-shadow: 0 0 0 1px rgba(95,104,212,0.8);
+  }
+  .map-mini-card .mini-card-label {
+    position: absolute;
+    top: 6px; left: 8px;
+    z-index: 2;
+    font-size: 14px;
+    line-height: 1;
+    letter-spacing: 0.12em;
+    font-weight: 700;
+    text-transform: uppercase;
+    pointer-events: none;
+  }
+  .map-mini-card svg { width: 100%; display: block; height: auto; }
+  .legend-title {
+    font-size: 10px; font-weight: 600;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 8px;
+  }
+  .legend-row {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 4px;
+  }
+  .legend-swatch {
+    width: 14px; height: 14px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+  .legend-line {
+    width: 14px; height: 0;
+    border-top: 1.5px dashed currentColor;
+    flex-shrink: 0;
+  }
+
+  .tooltip {
+    position: absolute;
+    background: var(--ink);
+    color: #fff;
+    font-family: var(--font-body);
+    font-size: 15px;
+    font-weight: 500;
+    padding: 12px 16px;
+    border-radius: 10px;
+    pointer-events: none;
+    z-index: 10;
+    white-space: nowrap;
+    box-shadow: 0 8px 24px rgba(29,27,23,0.22);
+    line-height: 1.35;
+  }
+  .tooltip strong {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: 19px;
+  }
+  .tooltip .tooltip-sub {
+    color: rgba(255,255,255,0.6);
+    font-size: 13px;
+    margin-top: 3px;
+  }
+  .tooltip .tooltip-path {
+    margin-top: 6px;
+    padding-top: 5px;
+    border-top: 1px solid rgba(255,255,255,0.15);
+    font-size: 11px;
+    color: rgba(255,255,255,0.78);
+    line-height: 1.5;
+  }
+  .tooltip .tooltip-seg::before {
+    content: '→ ';
+    color: var(--ink-faint);
+  }
+  .tooltip .tooltip-seg:first-child::before { content: '○ '; }
+
+  /* Side panel */
+  .side-panel {
+    display: flex; flex-direction: column;
+    gap: 16px;
+  }
+  .info-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 20px;
+  }
+  .info-card-label {
+    font-size: 10.5px; font-weight: 600;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 8px;
+  }
+  .info-card-value {
+    font-family: var(--font-display);
+    font-size: 22px; font-weight: 500;
+    color: var(--ink);
+    line-height: 1.2;
+    letter-spacing: -0.015em;
+  }
+  .info-card-sub {
+    font-size: 12.5px;
+    color: var(--ink-muted);
+    margin-top: 6px;
+    line-height: 1.45;
+  }
+
+  .stat-row {
+    display: flex; gap: 12px;
+    margin-top: 12px;
+  }
+  .stat-mini {
+    flex: 1;
+    text-align: left;
+  }
+  .stat-mini-num {
+    font-family: var(--font-display);
+    font-size: 18px; font-weight: 500;
+    color: var(--ink);
+  }
+  .stat-mini-num.subway { color: var(--subway); }
+  .stat-mini-num.walk { color: var(--walk); }
+  .stat-mini-num.drive { color: var(--drive); }
+  .stat-mini-num.bike { color: var(--bike); }
+  .stat-mini-label {
+    font-size: 10px; font-weight: 600;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-top: 2px;
+  }
+
+  /* Comparison strip */
+  .comparison {
+    margin-top: 32px;
+    padding-top: 28px;
+    border-top: 1px solid var(--border);
+  }
+  .comparison h3 {
+    font-family: var(--font-display);
+    font-size: 19px; font-weight: 500;
+    letter-spacing: -0.01em;
+    margin-bottom: 6px;
+  }
+  .comparison p {
+    font-size: 14px;
+    color: var(--ink-muted);
+    margin-bottom: 18px;
+    max-width: 700px;
+  }
+  .mini-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  .mini-grid.sidebar-mini {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin-top: 12px;
+  }
+  .sidebar-mini .mini-card {
+    padding: 6px;
+    background: transparent;
+    border: 2px solid transparent;
+    border-radius: 10px;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .sidebar-mini .mini-card:hover {
+    border-color: #5F68D4;
+    background: rgba(95,104,212,0.06);
+  }
+  .sidebar-mini .mini-card.is-current {
+    border-color: rgba(95,104,212,0.4);
+    background: rgba(95,104,212,0.04);
+  }
+  .sidebar-mini .mini-card-label {
+    font-size: 10.5px;
+    letter-spacing: 0.14em;
+    margin-bottom: 6px;
+  }
+  .sidebar-mini svg { width: 100%; display: block; }
+  .mini-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+  }
+  .mini-card-label {
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 8px;
+  }
+  .mini-card svg {
+    width: 100%; height: auto;
+    display: block;
+    border-radius: 6px;
+  }
+
+  /* Explainer */
+  .explainer {
+    margin-top: 56px;
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    gap: 56px;
+    align-items: start;
+  }
+  .explainer-label {
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--ink-muted);
+    position: sticky; top: 80px;
+  }
+  .explainer-label::before {
+    content: ''; display: inline-block;
+    width: 18px; height: 1.5px;
+    background: var(--clay);
+    margin-right: 10px; vertical-align: middle;
+  }
+  .explainer h2 {
+    font-family: var(--font-display);
+    font-size: 28px; font-weight: 500;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    margin-bottom: 16px;
+  }
+  .explainer h3 {
+    font-family: var(--font-display);
+    font-size: 18px; font-weight: 500;
+    margin: 24px 0 8px;
+  }
+  .explainer p {
+    font-size: 15px;
+    line-height: 1.65;
+    color: var(--ink-secondary);
+    margin-bottom: 14px;
+    max-width: 660px;
+  }
+  .explainer ul {
+    margin: 16px 0 16px 0;
+    padding-left: 0;
+    list-style: none;
+    max-width: 760px;
+  }
+  .explainer li {
+    font-size: 14.5px;
+    color: var(--ink-secondary);
+    line-height: 1.65;
+    padding-left: 18px;
+    position: relative;
+    margin-bottom: 14px;
+  }
+  .explainer .method-list li strong {
+    color: var(--ink);
+    font-weight: 600;
+  }
+  .explainer li::before {
+    content: '·';
+    position: absolute; left: 4px;
+    color: var(--clay);
+    font-weight: 700;
+    font-size: 18px;
+  }
+
+  /* Footer */
+  .footer {
+    margin-top: 64px; padding-top: 28px;
+    border-top: 1px solid var(--border);
+    font-size: 12.5px;
+    color: var(--ink-muted);
+    max-width: 760px;
+    line-height: 1.6;
+  }
+
+  /* SVG-specific */
+  .iso-fill { transition: opacity 0.6s ease, fill 0.6s ease; }
+  .iso-stroke { transition: stroke 0.6s ease, stroke-opacity 0.6s ease; }
+  .ref-circle { stroke: var(--ink); stroke-opacity: 0.18; stroke-width: 1; fill: none; stroke-dasharray: 3 4; }
+  .ref-circle-label {
+    font-family: var(--font-body);
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    fill: var(--ink-muted);
+    text-anchor: middle;
+  }
+  .iso-label {
+    font-family: var(--font-body);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    fill: #fff;
+    text-anchor: middle;
+    pointer-events: none;
+  }
+  .origin-dot { fill: #8b1814; transition: cx 0.6s ease, cy 0.6s ease; }
+  .origin-ring { fill: none; stroke: #8b1814; stroke-width: 1.6; transition: cx 0.6s ease, cy 0.6s ease; }
+  .origin-glow {
+    fill: var(--clay);
+    opacity: 0.35;
+    transition: cx 0.6s ease, cy 0.6s ease;
+    animation: pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 0.2; transform-origin: center; }
+    50% { opacity: 0.45; }
+  }
+  .manhattan-fill { fill: #fdfaf2; stroke: var(--ink); stroke-width: 0.6; }
+  .water { fill: #e6e9ec; }
+  .street-line { stroke: rgba(29,27,23,0.08); stroke-width: 0.5; fill: none; }
+  .street-label {
+    font-family: var(--font-body);
+    font-size: 8.5px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    fill: var(--ink-muted);
+  }
+  .origin-marker-icon { cursor: pointer; }
+  .origin-marker-icon circle { fill: #fff; stroke: var(--ink); stroke-width: 1; transition: all 0.2s; }
+  .origin-marker-icon:hover circle { fill: var(--clay); stroke: var(--clay); }
+  .origin-marker-icon text { font-family: var(--font-body); font-size: 8.5px; fill: var(--ink-secondary); font-weight: 500; pointer-events: none; }
+  .origin-marker-icon.active circle { opacity: 0; }
+  .origin-marker-icon.active text { fill: var(--ink); font-weight: 600; }
+
+  .station-dot { cursor: pointer; }
+  .station-dot .station-visible {
+    transition: r 0.15s, fill 0.15s, stroke 0.15s, stroke-width 0.15s;
+  }
+  .station-dot:hover .station-visible {
+    r: 4.2;
+    fill: var(--clay);
+    stroke: var(--clay);
+    stroke-width: 1.2;
+  }
+
+  /* Mobile */
+  @media (max-width: 920px) {
+    .topbar, .hero, .tool-wrap { padding-left: 24px; padding-right: 24px; }
+    .map-layout { grid-template-columns: 1fr; }
+    .side-panel { flex-direction: row; flex-wrap: wrap; }
+    .info-card { flex: 1; min-width: 200px; }
+    .explainer { grid-template-columns: 1fr; gap: 24px; }
+    .explainer-label { position: static; margin-bottom: 12px; }
+    .mini-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="topbar-brand" href="index.html">Agent Reports</a>
+  <span class="topbar-meta">Visual experiment · May 2026</span>
+</header>
+
+<section class="hero">
+  <h1 class="hero-title">Time-distance map of Manhattan</h1>
+</section>
+
+<div class="tool-wrap">
+
+  <!-- Main map + side panel (controls now live in the side panel) -->
+  <div class="map-layout">
+    <div class="map-container">
+      <div class="map-mode-box">
+        <div class="map-minis" id="modeChips">
+          <div class="mini-card map-mini-card" data-mode="walk" data-mode-label="walk">
+            <div class="mini-card-label" style="color: var(--walk);">Walk</div>
+            <svg id="miniWalk" viewBox="0 0 460 900" xmlns="http://www.w3.org/2000/svg"></svg>
+          </div>
+          <div class="mini-card map-mini-card" data-mode="subway" data-mode-label="subway">
+            <div class="mini-card-label" style="color: var(--subway);">Subway</div>
+            <svg id="miniSubway" viewBox="0 0 460 900" xmlns="http://www.w3.org/2000/svg"></svg>
+          </div>
+          <div class="mini-card map-mini-card" data-mode="bike" data-mode-label="bike">
+            <div class="mini-card-label" style="color: var(--bike);">Bike</div>
+            <svg id="miniBike" viewBox="0 0 460 900" xmlns="http://www.w3.org/2000/svg"></svg>
+          </div>
+          <div class="mini-card map-mini-card" data-mode="drive" data-mode-label="drive">
+            <div class="mini-card-label" style="color: var(--drive);">Drive</div>
+            <svg id="miniDrive" viewBox="0 0 460 900" xmlns="http://www.w3.org/2000/svg"></svg>
+          </div>
+        </div>
+      </div>
+      <div class="tooltip" id="mapTooltip" style="display:none"></div>
+      <svg class="map-svg" id="mainMap" viewBox="-100 0 560 900" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+
+    <div class="side-panel">
+      <div class="controls">
+        <div class="control-group">
+          <span class="time-budget-label">Travel Time · <span id="sliderValue">20</span> min</span>
+          <div class="slider-wrap">
+            <input type="range" id="timeSlider" min="0" max="60" step="1" value="20">
+            <div class="slider-marks">
+              <span>0</span><span>20</span><span>40</span><span>60</span>
+            </div>
+            <button id="playPauseBtn" class="play-pause" aria-label="Play/pause animation"><span class="pp-icon">⏸</span><span class="pp-text">Pause</span></button>
+          </div>
+        </div>
+        <div class="control-group">
+          <span class="time-budget-label">Traffic Estimate · <span id="todLabel">Midday</span></span>
+          <div class="tod-segments" id="todSegments">
+            <button class="tod-seg" data-tod="late"    title="1–5am">Late</button>
+            <button class="tod-seg" data-tod="am"      title="7–10am">AM rush</button>
+            <button class="tod-seg is-current" data-tod="midday" title="10am–3pm">Midday</button>
+            <button class="tod-seg" data-tod="pm"      title="4–7pm">PM rush</button>
+            <button class="tod-seg" data-tod="evening" title="7pm–1am">Eve</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="info-card">
+        <div class="info-card-label">Starting point</div>
+        <div class="info-card-value" id="originName">Times Square</div>
+        <div class="info-card-sub" id="originSub">42nd St & Broadway</div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-value" id="reachValue">~<span id="reachArea">3.0</span> sq miles</div>
+        <div class="info-card-sub" id="reachVs"></div>
+        <div class="stat-row">
+          <div class="stat-mini"><div class="stat-mini-num walk" id="reachWalk">1.2</div><div class="stat-mini-label">Walk</div></div>
+          <div class="stat-mini"><div class="stat-mini-num subway" id="reachSubway">5.4</div><div class="stat-mini-label">Subway</div></div>
+          <div class="stat-mini"><div class="stat-mini-num bike" id="reachBike">2.8</div><div class="stat-mini-label">Bike</div></div>
+          <div class="stat-mini"><div class="stat-mini-num drive" id="reachDrive">2.1</div><div class="stat-mini-label">Drive</div></div>
+        </div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-value" id="warpRatio">5×</div>
+        <div class="info-card-sub" id="warpDesc">Subway lets you cover roughly 5× more ground than walking in the same 20 minutes.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Methodology -->
+  <section class="explainer">
+    <div></div>
+    <div>
+      <h3>Methodology</h3>
+      <ul class="method-list">
+        <li><strong>Routing algorithm.</strong> Travel times are computed by Dijkstra's shortest-path algorithm running over a multi-modal graph for each chosen origin. The graph has roughly 9,200 nodes: a 70 by 130 grid of cells covering the island plus one node per modeled subway stop. Edges encode walking, driving, boarding, riding, alighting, and transfer transitions, each with a fixed cost in minutes.</li>
+        <li><strong>Spatial discretization.</strong> Manhattan is tiled into a grid where each cell represents approximately 150 meters on a side. Cells outside the hand-traced Manhattan polygon are excluded from the graph. The polygon is a simplified approximation of the actual coastline.</li>
+        <li><strong>Walking.</strong> Modeled at a uniform 3 mph (4.8 km/h) along the grid. The grid is 4-connected (up, down, left, right), which approximates walking along Manhattan's street and avenue grid. No allowance is made for terrain, sidewalk congestion, or signal-controlled crossings.</li>
+        <li><strong>Driving.</strong> Each cell is classified into one of three road types: the Midtown core, all other Manhattan surface streets, and the FDR Drive / West Side Highway corridors. Speeds for each class vary with the selected time-of-day window: Midtown ranges from 3.5 mph at PM rush to 12 mph late at night; other surface streets from 6 to 16 mph; the highways from 20 to 45 mph. Speed values are hand-curated from published NYC TLC trip-record averages and NYC DOT speed studies; real-time traffic feeds are not consulted. A 4-minute fixed overhead at the origin represents parking and access time.</li>
+        <li><strong>Biking.</strong> The same three road classes drive bike speeds: ~10 mph on most surface streets, ~7 mph through the Midtown core during the day, and ~14 mph along the Hudson and East River Greenways (which share corridors with the WSH and FDR). Biking is less sensitive to traffic than driving, but speeds dip slightly at rush hour due to pedestrian and intersection congestion. A 1-minute fixed overhead at the origin represents grabbing a Citi Bike or unlocking your own. Bike infrastructure attributes are simplified to corridor-vs-street; specific protected lanes on individual avenues are not modeled. Speed values are drawn from aggregated Citi Bike trip-level averages and the NACTO Cycling Design Guide.</li>
+        <li><strong>Time of day.</strong> Five canonical windows are modeled: late night (1–5am), AM rush (7–10am), midday (10am–3pm), PM rush (4–7pm), and evening (7pm–1am). Driving speeds and subway platform waits both vary by window. Walking is held constant across windows. Switching windows clears the drive- and subway-mode portions of the shortest-path cache and re-runs Dijkstra. Five windows rather than 24 hours reflects the actual resolution of the underlying speed data.</li>
+        <li><strong>Subway network.</strong> Approximately 55 Manhattan stations are encoded by hand, grouped by line and complex. Modeled lines include the 1, 2/3, 4/5, 6, A, C, B/D, F, N/Q/R/W, L, 7, and the Second Avenue Q. Local stops are sometimes folded into nearby express stops to reduce data volume.</li>
+        <li><strong>Subway timing.</strong> Inter-station travel times are approximated from published MTA scheduled run times: roughly 1.4 minutes per stop on locals and 2.2 to 2.5 minutes per stop on expresses with longer skips. The platform wait on first boarding ranges from 3 minutes at rush hour to 10 minutes late at night, again varying with the time-of-day window. Cross-platform transfers between co-located lines cost 2 to 9 minutes of walking, plus the same window-dependent wait for the next train.</li>
+        <li><strong>Multi-modal routing.</strong> In subway mode the optimizer is free to mix walking and riding. A typical computed route looks like: walk to the nearest station, ride a specific line some number of stops, transfer if useful, walk to the destination. The hover tooltip displays the full breakdown for any point, and the thin colored line on the map traces the route Dijkstra selected.</li>
+        <li><strong>Data sources.</strong> Station coordinates and line connectivity are hand-curated from the MTA public station list. Per-stop run times are derived from posted schedules. Driving speeds are rough averages from publicly reported NYC DOT and academic studies of Manhattan traffic. The Manhattan polygon was hand-traced from open-source basemaps. No proprietary routing APIs are queried.</li>
+        <li><strong>Limitations.</strong> Bus, Citi Bike, ferry, and PATH are not modeled. Wait times are not schedule-aware. Subway service changes, weekend reroutes, and elevator outages are ignored. Driving speeds are zone averages rather than block-by-block. The visualization is intended to convey the qualitative shape of New York's time geography, not to substitute for a production routing engine such as Citymapper, Google Maps, or Apple Maps.</li>
+        <li><strong>Implementation.</strong> The entire model runs client-side in the browser. Dijkstra results are cached per origin and mode so repeated mode switches at the same starting point reuse the same computation. Source: a single self-contained HTML file with no external dependencies beyond Google Fonts.</li>
+      </ul>
+    </div>
+  </section>
+
+  <div class="footer">
+    Visual experiment by Nicholas Reville. Built with hand-traced geometry and a back-of-envelope routing model. Updated May 14, 2026.
+  </div>
+
+</div>
+
+<script>
+// ============================================================
+// GEOMETRY & PROJECTION
+// ============================================================
+
+// Manhattan bounding box (lat/lng)
+const LAT_MIN = 40.695, LAT_MAX = 40.882;
+const LNG_MIN = -74.030, LNG_MAX = -73.905;
+
+// SVG dimensions (matches viewBox)
+const SVG_W = 460, SVG_H = 900;
+
+// At Manhattan latitude, 1° lng ≈ cos(40.78°) ≈ 0.757 of 1° lat in physical distance.
+// We want equal physical scales, so adjust:
+const LAT_SPAN = LAT_MAX - LAT_MIN;       // ~0.187
+const LNG_SPAN = LNG_MAX - LNG_MIN;       // ~0.125
+const LAT_COS = Math.cos(40.78 * Math.PI / 180);
+
+// Pick scale to fit lat span vertically and lng (cos-adjusted) horizontally
+const SCALE_Y = SVG_H / LAT_SPAN;            // px per degree lat
+const SCALE_X = SVG_W / (LNG_SPAN * LAT_COS); // px per (cos-adj) degree lng — wait, let me think
+// Actually: 1° lat in physical distance ≈ 69 mi; 1° lng ≈ 69 * cos(lat) mi
+// Easier: project everything via degrees lat for vertical and degrees-lng × cos(lat) for horizontal
+// So projected_x = (lng - LNG_MIN) * cos(lat) and projected_y = LAT_MAX - lat,
+// scaled to fit viewbox.
+const PROJ_X_SPAN = LNG_SPAN * LAT_COS;
+const PROJ_Y_SPAN = LAT_SPAN;
+const SCALE = Math.min(SVG_W / PROJ_X_SPAN, SVG_H / PROJ_Y_SPAN);
+const X_OFFSET = (SVG_W - PROJ_X_SPAN * SCALE) / 2;
+const Y_OFFSET = (SVG_H - PROJ_Y_SPAN * SCALE) / 2;
+
+// Miles per degree lat
+const MI_PER_DEG_LAT = 69.0;
+// SCALE has units of pixels per degree (lat). One mile = (1/69) deg lat.
+// So 1 px = (1/SCALE) deg lat = (1/SCALE) * 69 miles. Hence:
+const MI_PER_PIXEL = MI_PER_DEG_LAT / SCALE;
+
+function project(lat, lng) {
+  const x = (lng - LNG_MIN) * LAT_COS * SCALE + X_OFFSET;
+  const y = (LAT_MAX - lat) * SCALE + Y_OFFSET;
+  return { x, y };
+}
+
+function unproject(x, y) {
+  const lng = (x - X_OFFSET) / (LAT_COS * SCALE) + LNG_MIN;
+  const lat = LAT_MAX - (y - Y_OFFSET) / SCALE;
+  return { lat, lng };
+}
+
+// ============================================================
+// MANHATTAN POLYGON (hand-traced clockwise from Battery)
+// ============================================================
+const MANHATTAN_LL = [
+  [40.7020, -74.0175], // Battery
+  [40.7100, -74.0188], // Battery Park City south
+  [40.7240, -74.0150], // Tribeca / west
+  [40.7350, -74.0120], // West Village south
+  [40.7450, -74.0090], // West Village / Meatpacking
+  [40.7560, -74.0080], // Chelsea waterfront
+  [40.7680, -74.0060], // Hell's Kitchen / Hudson Yards
+  [40.7820, -73.9920], // UWS south
+  [40.7960, -73.9750], // UWS north / Morningside
+  [40.8100, -73.9650], // Morningside Heights
+  [40.8260, -73.9610], // Hamilton Heights
+  [40.8480, -73.9505], // Washington Heights west
+  [40.8650, -73.9325], // Inwood Park west
+  [40.8730, -73.9230], // Inwood north tip
+  [40.8740, -73.9120], // Inwood east tip
+  [40.8550, -73.9210], // Inwood east / Dyckman
+  [40.8400, -73.9300], // Washington Hts east
+  [40.8200, -73.9350], // East Harlem high
+  [40.8000, -73.9320], // East Harlem
+  [40.7820, -73.9410], // UES top
+  [40.7700, -73.9450], // UES mid (around 96th)
+  [40.7600, -73.9560], // UES south (around 70s)
+  [40.7480, -73.9650], // Midtown East (around 50s)
+  [40.7390, -73.9720], // Murray Hill (around 30s)
+  [40.7310, -73.9750], // Kips Bay / Gramercy east
+  [40.7220, -73.9760], // East Village east
+  [40.7140, -73.9780], // LES east
+  [40.7080, -73.9830], // Two Bridges
+  [40.7035, -73.9920], // South Street Seaport
+  [40.7020, -74.0080], // Battery east
+  [40.7020, -74.0175], // close
+];
+
+const MANHATTAN_XY = MANHATTAN_LL.map(([lat, lng]) => project(lat, lng));
+
+// ============================================================
+// ORIGINS (named starting points)
+// ============================================================
+const ORIGINS = [
+  { id: 'times-square',    name: 'Times Square',     sub: '42nd St & Broadway',  lat: 40.7580, lng: -73.9855 },
+  { id: 'grand-central',   name: 'Grand Central',    sub: '42nd St & Park Ave',  lat: 40.7527, lng: -73.9772 },
+  { id: 'union-square',    name: 'Union Square',     sub: '14th St & Broadway',  lat: 40.7359, lng: -73.9911 },
+  { id: 'wall-street',     name: 'Wall Street',      sub: 'Financial District',  lat: 40.7075, lng: -74.0090 },
+  { id: 'battery-park',    name: 'Battery Park',     sub: 'Southern tip',        lat: 40.7033, lng: -74.0170 },
+  { id: 'central-park',    name: 'Central Park',     sub: '72nd St & 5th Ave',   lat: 40.7732, lng: -73.9672 },
+  { id: 'columbia',        name: 'Columbia',         sub: '116th & Broadway',    lat: 40.8075, lng: -73.9626 },
+  { id: 'harlem-125',      name: '125th St',         sub: 'Central Harlem',      lat: 40.8090, lng: -73.9450 },
+  { id: 'washington-hts',  name: 'Washington Hts.',  sub: '181st St',            lat: 40.8497, lng: -73.9384 },
+  { id: 'inwood',          name: 'Inwood',           sub: 'Northern tip',        lat: 40.8676, lng: -73.9226 },
+];
+
+// ============================================================
+// SUBWAY CORRIDOR MODEL
+// ============================================================
+// Four north-south corridors plus a few crosstown links.
+// Each corridor is a line segment in lat/lng. The model:
+//  - From any point, find nearest corridor (walk to it)
+//  - Travel along corridor at express speed
+//  - Walk from corridor to destination
+//  - Add platform wait + small transfer penalty if crossing corridors
+
+const SUBWAY_CORRIDORS = [
+  // West Side (1/2/3 + A/C/B/D roughly)
+  { name: 'west',    line: [[40.703, -74.013], [40.870, -73.928]] },  // tracks the Hudson edge curve
+  // 7th Ave / Broadway (1/2/3 lower, then everything Midtown)
+  { name: 'central', line: [[40.704, -74.012], [40.760, -73.987], [40.797, -73.965], [40.835, -73.945]] },
+  // Lex/Park (4/5/6)
+  { name: 'east',    line: [[40.705, -74.001], [40.745, -73.978], [40.785, -73.951], [40.820, -73.937]] },
+  // East River / 2nd Ave area approx
+  { name: 'far-east', line: [[40.720, -73.984], [40.770, -73.950], [40.800, -73.940]] },
+];
+
+// Project corridor segments to SVG
+const CORRIDORS_XY = SUBWAY_CORRIDORS.map(c => ({
+  name: c.name,
+  segments: []
+}));
+SUBWAY_CORRIDORS.forEach((c, ci) => {
+  for (let i = 0; i < c.line.length - 1; i++) {
+    const a = project(c.line[i][0], c.line[i][1]);
+    const b = project(c.line[i+1][0], c.line[i+1][1]);
+    CORRIDORS_XY[ci].segments.push({ a, b });
+  }
+});
+
+// ============================================================
+// TRAVEL TIME MODEL
+// ============================================================
+// All times in MINUTES. Coordinates in SVG pixels.
+
+const MANHATTAN_ANGLE_DEG = 29;
+const MANHATTAN_ANGLE_RAD = MANHATTAN_ANGLE_DEG * Math.PI / 180;
+const SIN_A = Math.sin(MANHATTAN_ANGLE_RAD);
+const COS_A = Math.cos(MANHATTAN_ANGLE_RAD);
+
+// Convert SVG vector to (crosstown, uptown) in Manhattan grid frame
+function gridProject(dx, dy) {
+  const crosstown = dx * COS_A + dy * SIN_A;
+  const uptown    = -dx * SIN_A + dy * COS_A;
+  return { crosstown, uptown };
+}
+
+function manhattanDistance(ox, oy, dx, dy) {
+  // Returns distance in miles using Manhattan-grid taxicab metric
+  const g = gridProject(dx - ox, dy - oy);
+  return (Math.abs(g.crosstown) + Math.abs(g.uptown)) * MI_PER_PIXEL;
+}
+
+// Distance from point P to segment AB, in miles
+function pointToSegmentMi(px, py, ax, ay, bx, by) {
+  const dx = bx - ax, dy = by - ay;
+  const len2 = dx*dx + dy*dy;
+  if (len2 < 1e-6) {
+    const distPx = Math.hypot(px - ax, py - ay);
+    return distPx * MI_PER_PIXEL;
+  }
+  let t = ((px - ax) * dx + (py - ay) * dy) / len2;
+  t = Math.max(0, Math.min(1, t));
+  const cx = ax + t * dx, cy = ay + t * dy;
+  return Math.hypot(px - cx, py - cy) * MI_PER_PIXEL;
+}
+
+// Returns { distMi, corridorIdx, t } — nearest corridor info
+function nearestCorridor(x, y) {
+  let best = { distMi: Infinity, corridorIdx: -1, t: 0 };
+  CORRIDORS_XY.forEach((c, ci) => {
+    c.segments.forEach(seg => {
+      const dm = pointToSegmentMi(x, y, seg.a.x, seg.a.y, seg.b.x, seg.b.y);
+      if (dm < best.distMi) best = { distMi: dm, corridorIdx: ci, t: 0 };
+    });
+  });
+  return best;
+}
+
+// Walking time in minutes
+function walkTime(ox, oy, dx, dy) {
+  const distMi = manhattanDistance(ox, oy, dx, dy);
+  return distMi / 3 * 60; // 3 mph
+}
+
+// Driving time in minutes
+function driveTime(ox, oy, dx, dy) {
+  const distMi = manhattanDistance(ox, oy, dx, dy);
+  // Midtown traffic ~6 mph effective. Add 5 min for parking/getting-to-car.
+  return 5 + distMi / 6.5 * 60;
+}
+
+// Subway time in minutes — uses corridor model
+function subwayTime(ox, oy, dx, dy) {
+  const oc = nearestCorridor(ox, oy);
+  const dc = nearestCorridor(dx, dy);
+
+  // Walk to corridor + walk from corridor
+  const walkInMi = oc.distMi;
+  const walkOutMi = dc.distMi;
+
+  // North-south distance between origin's corridor-projection and dest's corridor-projection
+  // Use the uptown component of (dest - origin)
+  const g = gridProject(dx - ox, dy - oy);
+  const uptownMi = Math.abs(g.uptown) * MI_PER_PIXEL;
+  // Some crosstown overhead — corridors aren't exactly perpendicular paths
+  const crosstownMi = Math.abs(g.crosstown) * MI_PER_PIXEL;
+
+  // Subway speed depends on whether same corridor or not
+  const sameCorridor = oc.corridorIdx === dc.corridorIdx;
+  const ridingMi = uptownMi;
+  const ridingSpeedMph = sameCorridor ? 22 : 18; // express vs. with transfer
+  const transferPenaltyMin = sameCorridor ? 0 : 2;
+
+  const walkSpeedMph = 3;
+  // Crosstown — at 14th, 42nd, 59th, 125th there are real crosstown trains.
+  // Effective crosstown speed: 8 mph (mostly shuttle/L speeds).
+  const crosstownSpeedMph = 8;
+
+  const time =
+    (walkInMi / walkSpeedMph) * 60 +
+    4 +                                   // platform wait
+    1 +                                   // entry overhead
+    (ridingMi / ridingSpeedMph) * 60 +
+    transferPenaltyMin +
+    (sameCorridor ? 0 : (crosstownMi / crosstownSpeedMph) * 60) +
+    (walkOutMi / walkSpeedMph) * 60;
+
+  // For very short trips, walking is faster — cap subway time at walking time
+  const w = walkTime(ox, oy, dx, dy);
+  return Math.min(time, w);
+}
+
+function travelTime(ox, oy, dx, dy, mode) {
+  if (mode === 'walk')   return walkTime(ox, oy, dx, dy);
+  if (mode === 'drive')  return driveTime(ox, oy, dx, dy);
+  if (mode === 'subway') return subwayTime(ox, oy, dx, dy);
+  return Infinity;
+}
+
+// ============================================================
+// MULTI-MODAL GRAPH DATA (subway stations, lines, drive zones)
+// ============================================================
+
+// Stations — id, lat, lng, display name
+const STATIONS_RAW = [
+  ['battery',    40.7016, -74.0133, 'South Ferry'],
+  ['wall',       40.7077, -74.0114, 'Wall St'],
+  ['fulton',     40.7102, -74.0080, 'Fulton St'],
+  ['chambers',   40.7148, -74.0085, 'Chambers'],
+  ['canal',      40.7185, -74.0010, 'Canal St'],
+  ['houston',    40.7283, -74.0050, 'Houston'],
+  ['w4',         40.7320, -74.0001, 'W4 / Wash Sq'],
+  ['8th',        40.7300, -73.9920, '8 St / Astor'],
+  ['unionsq',    40.7345, -73.9907, 'Union Sq'],
+  ['14ace',      40.7396, -74.0019, '14 / 8 Ave'],
+  ['14fm',       40.7376, -73.9966, '14 / 6 Ave'],
+  ['14L',        40.7314, -73.9817, '14 / 1 Ave'],
+  ['23-1',       40.7438, -74.0001, '23 / 7 Ave'],
+  ['23fm',       40.7427, -73.9925, '23 / 6 Ave'],
+  ['34-123',     40.7503, -73.9911, '34 / Penn (1/2/3)'],
+  ['34-ace',     40.7521, -73.9931, '34 / Penn (A/C/E)'],
+  ['herald',     40.7497, -73.9879, '34 / Herald'],
+  ['timessq',    40.7559, -73.9869, 'Times Sq'],
+  ['bryant',     40.7544, -73.9842, 'Bryant Park'],
+  ['gc',         40.7527, -73.9772, 'Grand Central'],
+  ['pa',         40.7574, -73.9897, 'Port Authority'],
+  ['rockefeller',40.7585, -73.9810, 'Rockefeller'],
+  ['50-1',       40.7615, -73.9836, '50 St (1)'],
+  ['57',         40.7642, -73.9793, '57 St'],
+  ['columbus',   40.7682, -73.9819, 'Columbus Circle'],
+  ['lex59',      40.7625, -73.9676, '59 / Lex'],
+  ['66',         40.7724, -73.9819, '66 / Lincoln'],
+  ['68',         40.7682, -73.9637, '68 / Hunter'],
+  ['72-123',     40.7783, -73.9819, '72 St (1/2/3)'],
+  ['72-bc',      40.7758, -73.9763, '72 St (B/C)'],
+  ['77',         40.7738, -73.9596, '77 St'],
+  ['86-1',       40.7884, -73.9762, '86 St (1)'],
+  ['86-bc',      40.7853, -73.9706, '86 St (B/C)'],
+  ['86-lex',     40.7795, -73.9554, '86 St (Lex)'],
+  ['86-q',       40.7777, -73.9519, '86 St (Q)'],
+  ['96-123',     40.7938, -73.9722, '96 St (1/2/3)'],
+  ['96-6',       40.7853, -73.9532, '96 St (6)'],
+  ['96-q',       40.7848, -73.9485, '96 St (Q)'],
+  ['110',        40.8049, -73.9651, '110 St'],
+  ['116-1',      40.8081, -73.9646, '116 / Columbia'],
+  ['116-6',      40.7980, -73.9433, '116 St (6)'],
+  ['125-1',      40.8156, -73.9588, '125 St (1)'],
+  ['125-23',     40.8073, -73.9456, '125 St (2/3)'],
+  ['125-lex',    40.8043, -73.9379, '125 St (Lex)'],
+  ['125-abcd',   40.8112, -73.9520, '125 St (A/B/C/D)'],
+  ['145-1',      40.8264, -73.9504, '145 St (1)'],
+  ['145-abcd',   40.8246, -73.9447, '145 St (A/B/C/D)'],
+  ['157',        40.8341, -73.9460, '157 St'],
+  ['168',        40.8407, -73.9402, '168 St'],
+  ['181-1',      40.8493, -73.9332, '181 St (1)'],
+  ['181-a',      40.8513, -73.9376, '181 St (A)'],
+  ['190',        40.8585, -73.9335, '190 St'],
+  ['dyckman-1',  40.8650, -73.9243, 'Dyckman (1)'],
+  ['207-a',      40.8680, -73.9209, '207 St (A)'],
+  ['207-1',      40.8678, -73.9118, '215 St (1)'],
+];
+
+// Lines — ordered stop sequences with per-stop time (minutes)
+const LINES_DATA = {
+  '1':    { color: '#ee352e', stops: ['battery','chambers','canal','houston','14ace','23-1','34-123','timessq','50-1','columbus','66','72-123','86-1','96-123','110','116-1','125-1','145-1','157','168','181-1','dyckman-1','207-1'], timePerStop: 1.4 },
+  '2/3':  { color: '#ee352e', stops: ['wall','fulton','chambers','14fm','34-123','timessq','72-123','96-123','125-23','145-abcd'], timePerStop: 2.3 },
+  '4/5':  { color: '#00933c', stops: ['battery','fulton','unionsq','gc','lex59','86-lex','125-lex'], timePerStop: 2.5 },
+  '6':    { color: '#00933c', stops: ['battery','fulton','canal','8th','unionsq','23fm','gc','68','77','86-lex','96-6','116-6','125-lex'], timePerStop: 1.4 },
+  'A':    { color: '#0039a6', stops: ['fulton','chambers','canal','w4','14ace','34-ace','pa','columbus','125-abcd','145-abcd','168','181-a','190','207-a'], timePerStop: 2.4 },
+  'C':    { color: '#0039a6', stops: ['fulton','chambers','canal','w4','14ace','23fm','34-ace','pa','50-1','columbus','72-bc','86-bc','110','125-abcd','145-abcd','168'], timePerStop: 1.5 },
+  'B/D':  { color: '#ff6319', stops: ['w4','14fm','23fm','herald','bryant','rockefeller','57','columbus','125-abcd'], timePerStop: 2.3 },
+  'F':    { color: '#ff6319', stops: ['w4','14fm','23fm','herald','bryant','rockefeller','57','lex59'], timePerStop: 1.6 },
+  'NQRW': { color: '#fccc0a', stops: ['battery','fulton','canal','8th','unionsq','23fm','herald','timessq','rockefeller','57','lex59'], timePerStop: 1.8 },
+  'Q':    { color: '#fccc0a', stops: ['lex59','86-q','96-q'], timePerStop: 3.0 },
+  'L':    { color: '#a7a9ac', stops: ['14ace','14fm','unionsq','14L'], timePerStop: 1.5 },
+  '7':    { color: '#b933ad', stops: ['timessq','bryant','gc'], timePerStop: 1.6 },
+};
+
+// Transfer connections — pairs of stations with walk-minutes between them
+const TRANSFERS = [
+  ['34-123','34-ace', 3], ['34-123','herald', 4], ['34-ace','herald', 5],
+  ['timessq','pa', 2], ['timessq','bryant', 5], ['gc','bryant', 6],
+  ['unionsq','14fm', 4], ['unionsq','14ace', 7], ['unionsq','8th', 3],
+  ['14ace','14fm', 4],
+  ['86-1','86-bc', 5], ['86-bc','86-lex', 9], ['86-lex','86-q', 3],
+  ['96-123','96-6', 9], ['96-6','96-q', 3],
+  ['125-1','125-23', 8], ['125-23','125-lex', 5], ['125-23','125-abcd', 5],
+  ['125-abcd','125-lex', 6],
+  ['145-1','145-abcd', 4],
+  ['181-1','181-a', 5],
+  ['fulton','chambers', 6], ['rockefeller','bryant', 4], ['columbus','57', 5],
+];
+
+// Driving zones — speeds in mph by bounding-box lat/lng
+// Cells are classified into one of three road types. Speed depends on the
+// time-of-day window (see SPEED_BY_WINDOW). The "midtown" box covers the
+// dense core that grinds hardest in rush hour.
+const MIDTOWN_BOX = { latMin: 40.748, latMax: 40.775, lngMin: -74.005, lngMax: -73.960 };
+
+// mph per road class per time-of-day window (driving)
+const SPEED_BY_WINDOW = {
+  late:    { other: 16,  midtown: 12,  highway: 45 },  // 1–5am
+  am:      { other:  7,  midtown:  4,  highway: 22 },  // 7–10am
+  midday:  { other:  9,  midtown:  6,  highway: 32 },  // 10am–3pm
+  pm:      { other:  6,  midtown: 3.5, highway: 20 },  // 4–7pm
+  evening: { other: 11,  midtown:  8,  highway: 35 },  // 7pm–1am
+};
+
+// mph per road class per time-of-day window (biking). "Highway" class
+// represents the Hudson and East River Greenways (the WSH/FDR corridors
+// also carry the major protected bike paths). Biking is much less
+// time-of-day-sensitive than driving — only modest rush-hour slowdown
+// from pedestrian and car congestion. Sources: Citi Bike trip averages,
+// NYC DOT bike infrastructure reports.
+const BIKE_SPEED_BY_WINDOW = {
+  late:    { other: 11, midtown:  8,   highway: 14 },
+  am:      { other:  9, midtown:  6,   highway: 13 },
+  midday:  { other: 10, midtown:  7,   highway: 14 },
+  pm:      { other:  8, midtown: 5.5,  highway: 13 },
+  evening: { other: 10, midtown:  7,   highway: 14 },
+};
+
+const TIME_WINDOWS = [
+  { id: 'late',    label: 'Late night', hours: '1–5am'    },
+  { id: 'am',      label: 'AM rush',    hours: '7–10am'   },
+  { id: 'midday',  label: 'Midday',     hours: '10am–3pm' },
+  { id: 'pm',      label: 'PM rush',    hours: '4–7pm'    },
+  { id: 'evening', label: 'Evening',    hours: '7pm–1am'  },
+];
+const TOD_IDS = TIME_WINDOWS.map(w => w.id);
+
+// Subway average platform wait (minutes) by time-of-day window
+const PLATFORM_WAIT_BY_WINDOW = {
+  late: 10, am: 3, midday: 5, pm: 3, evening: 6,
+};
+
+// Highways — fast corridors hugging the shoreline
+const HIGHWAYS_LL = [
+  { name: 'WSH', speed: 30, widthMi: 0.08,
+    path: [[40.703, -74.019], [40.722, -74.014], [40.745, -74.010], [40.770, -74.009], [40.795, -73.994], [40.820, -73.962], [40.850, -73.951], [40.872, -73.928]] },
+  { name: 'FDR', speed: 30, widthMi: 0.08,
+    path: [[40.708, -74.000], [40.715, -73.978], [40.728, -73.974], [40.748, -73.968], [40.770, -73.951], [40.790, -73.940], [40.815, -73.933], [40.840, -73.927], [40.870, -73.920]] },
+];
+
+// --- Project data into SVG pixel space ---
+
+const STATIONS = STATIONS_RAW.map(([id, lat, lng, name], i) => {
+  const p = project(lat, lng);
+  return { id, idx: i, lat, lng, x: p.x, y: p.y, name };
+});
+const STATION_BY_ID = new Map(STATIONS.map(s => [s.id, s]));
+
+const HIGHWAYS = HIGHWAYS_LL.map(h => ({
+  name: h.name, speed: h.speed,
+  widthPx: h.widthMi / MI_PER_PIXEL,
+  segments: h.path.slice(0, -1).map((pt, i) => {
+    const a = project(pt[0], pt[1]);
+    const b = project(h.path[i+1][0], h.path[i+1][1]);
+    return { a, b };
+  }),
+}));
+
+// Project Midtown box to SVG pixels for cell classification
+const MIDTOWN_BOX_XY = (() => {
+  const p1 = project(MIDTOWN_BOX.latMin, MIDTOWN_BOX.lngMin);
+  const p2 = project(MIDTOWN_BOX.latMax, MIDTOWN_BOX.lngMax);
+  return {
+    xMin: Math.min(p1.x, p2.x), xMax: Math.max(p1.x, p2.x),
+    yMin: Math.min(p1.y, p2.y), yMax: Math.max(p1.y, p2.y),
+  };
+})();
+
+// Classify a cell: 0 = other, 1 = midtown, 2 = highway
+function classifyCell(x, y) {
+  for (const hw of HIGHWAYS) {
+    for (const seg of hw.segments) {
+      const dx = seg.b.x - seg.a.x, dy = seg.b.y - seg.a.y;
+      const len2 = dx*dx + dy*dy;
+      if (len2 < 1) continue;
+      let t = ((x - seg.a.x) * dx + (y - seg.a.y) * dy) / len2;
+      t = Math.max(0, Math.min(1, t));
+      const cx = seg.a.x + t * dx, cy = seg.a.y + t * dy;
+      if (Math.hypot(x - cx, y - cy) < hw.widthPx) return 2;  // highway
+    }
+  }
+  const b = MIDTOWN_BOX_XY;
+  if (x >= b.xMin && x <= b.xMax && y >= b.yMin && y <= b.yMax) return 1;  // midtown
+  return 0;  // other
+}
+const CLASS_NAMES = ['other', 'midtown', 'highway'];
+
+// --- Subway riding edges from line definitions ---
+const LINE_EDGES = [];
+for (const [lineId, lineData] of Object.entries(LINES_DATA)) {
+  for (let i = 0; i < lineData.stops.length - 1; i++) {
+    const a = STATION_BY_ID.get(lineData.stops[i]);
+    const b = STATION_BY_ID.get(lineData.stops[i + 1]);
+    if (!a || !b) { console.warn('Missing station for line', lineId, lineData.stops[i], lineData.stops[i+1]); continue; }
+    LINE_EDGES.push({ fromIdx: a.idx, toIdx: b.idx, time: lineData.timePerStop, line: lineId });
+  }
+}
+
+// ============================================================
+// MARCHING SQUARES (isochrone extraction)
+// ============================================================
+// Sample travel-time on a grid, then extract iso-contours.
+
+const GRID_COLS = 70;
+const GRID_ROWS = 130;
+// Grid covers the full SVG, but we set time = Infinity outside Manhattan polygon
+const GRID_DX = SVG_W / GRID_COLS;
+const GRID_DY = SVG_H / GRID_ROWS;
+
+// Point-in-polygon test
+function pointInPolygon(x, y, poly) {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const xi = poly[i].x, yi = poly[i].y;
+    const xj = poly[j].x, yj = poly[j].y;
+    if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+// Pre-compute which grid cells are inside Manhattan
+const INSIDE_MASK = new Uint8Array((GRID_ROWS + 1) * (GRID_COLS + 1));
+for (let r = 0; r <= GRID_ROWS; r++) {
+  for (let c = 0; c <= GRID_COLS; c++) {
+    const x = c * GRID_DX, y = r * GRID_DY;
+    INSIDE_MASK[r * (GRID_COLS + 1) + c] = pointInPolygon(x, y, MANHATTAN_XY) ? 1 : 0;
+  }
+}
+
+// ============================================================
+// GRAPH CONSTRUCTION (one-time at load)
+// ============================================================
+// Nodes: grid cells [0, NUM_CELLS) + subway platforms [NUM_CELLS, NUM_NODES)
+//
+// Why platforms (not stations) as nodes? In NYC, transferring between
+// two lines at the same physical station still costs you time — you walk
+// to a new platform and wait for the next train. Modeling each line at
+// each station as its own platform node lets us charge that transfer
+// explicitly, instead of letting Dijkstra hop lines for free.
+
+const NUM_CELLS = (GRID_ROWS + 1) * (GRID_COLS + 1);
+
+function cellId(r, c) { return r * (GRID_COLS + 1) + c; }
+
+// --- Compute which lines serve each station ---
+const STATION_LINES = new Map(); // stationId → array of lineIds
+STATIONS.forEach(s => STATION_LINES.set(s.id, []));
+for (const [lineId, data] of Object.entries(LINES_DATA)) {
+  for (const stopId of data.stops) {
+    const lines = STATION_LINES.get(stopId);
+    if (lines && !lines.includes(lineId)) lines.push(lineId);
+  }
+}
+
+// --- Build platform nodes (one per station-line pair) ---
+const PLATFORMS = [];                    // [{stationIdx, line, nodeId}, ...]
+const PLATFORM_OF = new Map();           // `${stationId}:${line}` → nodeId
+STATIONS.forEach((s, sIdx) => {
+  const lines = STATION_LINES.get(s.id) || [];
+  lines.forEach(line => {
+    const nodeId = NUM_CELLS + PLATFORMS.length;
+    PLATFORMS.push({ stationIdx: sIdx, line, nodeId });
+    PLATFORM_OF.set(`${s.id}:${line}`, nodeId);
+  });
+});
+const NUM_PLATFORMS = PLATFORMS.length;
+const NUM_NODES = NUM_CELLS + NUM_PLATFORMS;
+
+const CELL_DX_MI = GRID_DX * MI_PER_PIXEL;
+const CELL_DY_MI = GRID_DY * MI_PER_PIXEL;
+
+// Road-class per cell (0=other, 1=midtown, 2=highway)
+const CELL_CLASS = new Uint8Array(NUM_CELLS);
+for (let r = 0; r <= GRID_ROWS; r++) {
+  for (let c = 0; c <= GRID_COLS; c++) {
+    const cn = cellId(r, c);
+    if (!INSIDE_MASK[cn]) continue;
+    CELL_CLASS[cn] = classifyCell(c * GRID_DX, r * GRID_DY);
+  }
+}
+
+// Helper: drive cost for an edge of length `distMi` between cells with the
+// given road classes, in a given time window. Average the two endpoint speeds.
+function driveCostForWindow(distMi, classA, classB, win) {
+  const speedA = SPEED_BY_WINDOW[win][CLASS_NAMES[classA]];
+  const speedB = SPEED_BY_WINDOW[win][CLASS_NAMES[classB]];
+  return distMi / ((speedA + speedB) / 2) * 60;
+}
+
+function bikeCostForWindow(distMi, classA, classB, win) {
+  const speedA = BIKE_SPEED_BY_WINDOW[win][CLASS_NAMES[classA]];
+  const speedB = BIKE_SPEED_BY_WINDOW[win][CLASS_NAMES[classB]];
+  return distMi / ((speedA + speedB) / 2) * 60;
+}
+
+// Adjacency list — adj[node] = array of {to, type, cost, line?, isBoard?, isAlight?, isTransfer?, isRide?}
+const adj = new Array(NUM_NODES);
+for (let i = 0; i < NUM_NODES; i++) adj[i] = [];
+
+// --- Walking + driving cell-to-cell edges (4-connectivity) ---
+const DRIVE_OVERHEAD_MIN = 4;
+const SAME_STATION_TRANSFER_MIN = 2.5;   // walk between platforms at same station
+const PLATFORM_WAIT_MIN = 4;             // average wait when boarding a line
+
+for (let r = 0; r <= GRID_ROWS; r++) {
+  for (let c = 0; c <= GRID_COLS; c++) {
+    const a = cellId(r, c);
+    if (!INSIDE_MASK[a]) continue;
+    const classA = CELL_CLASS[a];
+    if (c < GRID_COLS) {
+      const b = cellId(r, c + 1);
+      if (INSIDE_MASK[b]) {
+        const classB = CELL_CLASS[b];
+        const walkCost = CELL_DX_MI / 3 * 60;
+        const driveCosts = TOD_IDS.map(w => driveCostForWindow(CELL_DX_MI, classA, classB, w));
+        const bikeCosts  = TOD_IDS.map(w => bikeCostForWindow(CELL_DX_MI, classA, classB, w));
+        adj[a].push({ to: b, type: 'walk', cost: walkCost });
+        adj[b].push({ to: a, type: 'walk', cost: walkCost });
+        adj[a].push({ to: b, type: 'drive', costs: driveCosts });
+        adj[b].push({ to: a, type: 'drive', costs: driveCosts });
+        adj[a].push({ to: b, type: 'bike', costs: bikeCosts });
+        adj[b].push({ to: a, type: 'bike', costs: bikeCosts });
+      }
+    }
+    if (r < GRID_ROWS) {
+      const b = cellId(r + 1, c);
+      if (INSIDE_MASK[b]) {
+        const classB = CELL_CLASS[b];
+        const walkCost = CELL_DY_MI / 3 * 60;
+        const driveCosts = TOD_IDS.map(w => driveCostForWindow(CELL_DY_MI, classA, classB, w));
+        const bikeCosts  = TOD_IDS.map(w => bikeCostForWindow(CELL_DY_MI, classA, classB, w));
+        adj[a].push({ to: b, type: 'walk', cost: walkCost });
+        adj[b].push({ to: a, type: 'walk', cost: walkCost });
+        adj[a].push({ to: b, type: 'drive', costs: driveCosts });
+        adj[b].push({ to: a, type: 'drive', costs: driveCosts });
+        adj[a].push({ to: b, type: 'bike', costs: bikeCosts });
+        adj[b].push({ to: a, type: 'bike', costs: bikeCosts });
+      }
+    }
+  }
+}
+
+// --- Boarding & alighting edges (cell ↔ each platform within 0.22 mi) ---
+const BOARDING_RADIUS_MI = 0.22;
+
+STATIONS.forEach((s, sIdx) => {
+  const lines = STATION_LINES.get(s.id) || [];
+  if (lines.length === 0) return;
+  const radPx = BOARDING_RADIUS_MI / MI_PER_PIXEL;
+  const radR = Math.ceil(radPx / GRID_DY) + 1;
+  const radC = Math.ceil(radPx / GRID_DX) + 1;
+  const cR = Math.round(s.y / GRID_DY);
+  const cC = Math.round(s.x / GRID_DX);
+  for (let dr = -radR; dr <= radR; dr++) {
+    for (let dc = -radC; dc <= radC; dc++) {
+      const r = cR + dr, c = cC + dc;
+      if (r < 0 || r > GRID_ROWS || c < 0 || c > GRID_COLS) continue;
+      const cn = cellId(r, c);
+      if (!INSIDE_MASK[cn]) continue;
+      const cx = c * GRID_DX, cy = r * GRID_DY;
+      const distMi = Math.hypot(s.x - cx, s.y - cy) * MI_PER_PIXEL;
+      if (distMi > BOARDING_RADIUS_MI) continue;
+      const walkMin = distMi / 3 * 60;
+      for (const line of lines) {
+        const pNode = PLATFORM_OF.get(`${s.id}:${line}`);
+        if (pNode == null) continue;
+        const boardCosts = TOD_IDS.map(w => walkMin + PLATFORM_WAIT_BY_WINDOW[w]);
+        adj[cn].push({ to: pNode, type: 'subway', costs: boardCosts, isBoard: true, line });
+        adj[pNode].push({ to: cn, type: 'subway', cost: walkMin, isAlight: true, line });
+      }
+    }
+  }
+});
+
+// --- Riding edges (consecutive same-line platforms) ---
+LINE_EDGES.forEach(({ fromIdx, toIdx, time, line }) => {
+  const fromSt = STATIONS[fromIdx].id;
+  const toSt = STATIONS[toIdx].id;
+  const nA = PLATFORM_OF.get(`${fromSt}:${line}`);
+  const nB = PLATFORM_OF.get(`${toSt}:${line}`);
+  if (nA == null || nB == null) return;
+  adj[nA].push({ to: nB, type: 'subway', cost: time, line, isRide: true });
+  adj[nB].push({ to: nA, type: 'subway', cost: time, line, isRide: true });
+});
+
+// --- Same-station transfer edges (between every pair of platforms at one station) ---
+STATIONS.forEach(s => {
+  const lines = STATION_LINES.get(s.id) || [];
+  for (let i = 0; i < lines.length; i++) {
+    for (let j = i + 1; j < lines.length; j++) {
+      const nA = PLATFORM_OF.get(`${s.id}:${lines[i]}`);
+      const nB = PLATFORM_OF.get(`${s.id}:${lines[j]}`);
+      if (nA == null || nB == null) continue;
+      // Walk plus a transfer wait that varies by time window
+      const transferCosts = TOD_IDS.map(w => SAME_STATION_TRANSFER_MIN + PLATFORM_WAIT_BY_WINDOW[w]);
+      adj[nA].push({ to: nB, type: 'subway', costs: transferCosts, isTransfer: true });
+      adj[nB].push({ to: nA, type: 'subway', costs: transferCosts, isTransfer: true });
+    }
+  }
+});
+
+// --- Cross-station transfer edges (between every platform pair across two co-located stations) ---
+TRANSFERS.forEach(([aId, bId, walkMins]) => {
+  const linesA = STATION_LINES.get(aId) || [];
+  const linesB = STATION_LINES.get(bId) || [];
+  for (const lA of linesA) {
+    for (const lB of linesB) {
+      const nA = PLATFORM_OF.get(`${aId}:${lA}`);
+      const nB = PLATFORM_OF.get(`${bId}:${lB}`);
+      if (nA == null || nB == null) continue;
+      const xferCosts = TOD_IDS.map(w => walkMins + PLATFORM_WAIT_BY_WINDOW[w]);
+      adj[nA].push({ to: nB, type: 'subway', costs: xferCosts, isTransfer: true });
+      adj[nB].push({ to: nA, type: 'subway', costs: xferCosts, isTransfer: true });
+    }
+  }
+});
+
+// ============================================================
+// MIN-HEAP (binary heap priority queue for Dijkstra)
+// ============================================================
+class MinHeap {
+  constructor() { this.d = []; }
+  size() { return this.d.length; }
+  push(item) {
+    this.d.push(item);
+    let i = this.d.length - 1;
+    while (i > 0) {
+      const p = (i - 1) >> 1;
+      if (this.d[p].c > this.d[i].c) {
+        const tmp = this.d[p]; this.d[p] = this.d[i]; this.d[i] = tmp;
+        i = p;
+      } else break;
+    }
+  }
+  pop() {
+    if (this.d.length === 0) return null;
+    const top = this.d[0];
+    const last = this.d.pop();
+    if (this.d.length > 0) {
+      this.d[0] = last;
+      let i = 0, n = this.d.length;
+      while (true) {
+        const l = i * 2 + 1, r = i * 2 + 2;
+        let m = i;
+        if (l < n && this.d[l].c < this.d[m].c) m = l;
+        if (r < n && this.d[r].c < this.d[m].c) m = r;
+        if (m === i) break;
+        const tmp = this.d[i]; this.d[i] = this.d[m]; this.d[m] = tmp;
+        i = m;
+      }
+    }
+    return top;
+  }
+}
+
+// ============================================================
+// DIJKSTRA (with predecessor tracking)
+// ============================================================
+function modeAllows(edgeType, mode) {
+  if (mode === 'walk')   return edgeType === 'walk';
+  if (mode === 'drive')  return edgeType === 'drive';
+  if (mode === 'bike')   return edgeType === 'bike';
+  if (mode === 'subway') return edgeType === 'walk' || edgeType === 'subway';
+  return false;
+}
+const BIKE_OVERHEAD_MIN = 1;  // grab a Citi Bike / unlock your own
+
+function dijkstra(originNode, mode, winIdx) {
+  // Float64Array, not Float32Array — Float32 rounding causes stale-entry
+  // false positives (cu > dist[u] when they should be equal).
+  const dist = new Float64Array(NUM_NODES);
+  const prev = new Int32Array(NUM_NODES);
+  const prevEdge = new Array(NUM_NODES);
+  dist.fill(9999);
+  prev.fill(-1);
+
+  const startCost = mode === 'drive' ? DRIVE_OVERHEAD_MIN
+                   : mode === 'bike'  ? BIKE_OVERHEAD_MIN
+                   : 0;
+  dist[originNode] = startCost;
+
+  const pq = new MinHeap();
+  pq.push({ n: originNode, c: startCost });
+
+  while (pq.size() > 0) {
+    const top = pq.pop();
+    const u = top.n, cu = top.c;
+    if (cu > dist[u]) continue;
+    const edges = adj[u];
+    for (let i = 0; i < edges.length; i++) {
+      const e = edges[i];
+      if (!modeAllows(e.type, mode)) continue;
+      // Edges with per-window costs (drive, subway boarding/transfer) read
+      // the current window slot; everything else uses a flat cost.
+      const edgeCost = e.costs ? e.costs[winIdx] : e.cost;
+      const nc = cu + edgeCost;
+      if (nc < dist[e.to]) {
+        dist[e.to] = nc;
+        prev[e.to] = u;
+        prevEdge[e.to] = e;
+        pq.push({ n: e.to, c: nc });
+      }
+    }
+  }
+  return { dist, prev, prevEdge };
+}
+
+// Find the nearest valid (inside-Manhattan) cell to a point
+function nearestCell(x, y) {
+  const cTarget = Math.round(x / GRID_DX);
+  const rTarget = Math.round(y / GRID_DY);
+  // Spiral outward until we find a cell inside Manhattan
+  for (let radius = 0; radius < 10; radius++) {
+    for (let dr = -radius; dr <= radius; dr++) {
+      for (let dc = -radius; dc <= radius; dc++) {
+        if (Math.max(Math.abs(dr), Math.abs(dc)) !== radius) continue;
+        const r = rTarget + dr, c = cTarget + dc;
+        if (r < 0 || r > GRID_ROWS || c < 0 || c > GRID_COLS) continue;
+        const cn = cellId(r, c);
+        if (INSIDE_MASK[cn]) return cn;
+      }
+    }
+  }
+  return cellId(rTarget, cTarget);
+}
+
+// ============================================================
+// PATH RECONSTRUCTION
+// ============================================================
+function tracePath(targetNode, dijkResult) {
+  const { prev, prevEdge } = dijkResult;
+  const steps = [];
+  let cur = targetNode;
+  while (cur >= 0 && prev[cur] >= 0) {
+    steps.unshift({ from: prev[cur], to: cur, edge: prevEdge[cur] });
+    cur = prev[cur];
+  }
+  return steps;
+}
+
+function summarizePath(steps) {
+  // Combine consecutive segments by kind and (for ride) by line.
+  const segs = [];
+  let cur = null;
+  for (const s of steps) {
+    const e = s.edge;
+    let kind;
+    if (e.type === 'walk') kind = 'walk';
+    else if (e.type === 'drive') kind = 'drive';
+    else if (e.isBoard) kind = 'board';
+    else if (e.isAlight) kind = 'alight';
+    else if (e.isTransfer) kind = 'transfer';
+    else if (e.isRide || e.line) kind = 'ride';
+    else kind = 'unknown';
+    const line = e.line || null;
+    const sameKindAndLine = cur && cur.kind === kind && (kind === 'ride' ? cur.line === line : true);
+    if (sameKindAndLine) {
+      cur.cost += e.cost;
+      cur.count += 1;
+    } else {
+      if (cur) segs.push(cur);
+      cur = { kind, line, cost: e.cost, count: 1 };
+    }
+  }
+  if (cur) segs.push(cur);
+  return segs;
+}
+
+// ============================================================
+// TIME FIELD (now powered by Dijkstra)
+// ============================================================
+let lastDijkstra = null;        // {originNode, mode, dist, prev, prevEdge}
+let currentTodIdx = 2;          // 0 late, 1 am, 2 midday (default), 3 pm, 4 evening
+const dijkstraCache = new Map(); // key: `${originNode}|${mode}|${winKey}`
+
+function computeTimeField(originX, originY, mode) {
+  const originNode = nearestCell(originX, originY);
+  // Walk is unaffected by time-of-day. Drive and subway both use the current
+  // window (drive: speeds; subway: platform waits + transfers).
+  const winKey = (mode === 'walk') ? 'static' : `w${currentTodIdx}`;
+  const key = `${originNode}|${mode}|${winKey}`;
+  let entry = dijkstraCache.get(key);
+  if (!entry) {
+    const result = dijkstra(originNode, mode, currentTodIdx);
+    const field = new Float64Array(NUM_CELLS);
+    for (let i = 0; i < NUM_CELLS; i++) {
+      field[i] = INSIDE_MASK[i] ? result.dist[i] : 9999;
+    }
+    entry = { field, dist: result.dist, prev: result.prev, prevEdge: result.prevEdge };
+    dijkstraCache.set(key, entry);
+    // Cap cache (each entry ~180 KB)
+    if (dijkstraCache.size > 120) {
+      const firstKey = dijkstraCache.keys().next().value;
+      dijkstraCache.delete(firstKey);
+    }
+  }
+  lastDijkstra = { originNode, mode, dist: entry.dist, prev: entry.prev, prevEdge: entry.prevEdge };
+  return entry.field;
+}
+
+// Marching squares — returns list of segments for given level
+function marchingSquares(field, level) {
+  const segs = [];
+  const stride = GRID_COLS + 1;
+  for (let r = 0; r < GRID_ROWS; r++) {
+    for (let c = 0; c < GRID_COLS; c++) {
+      const tl = field[r * stride + c];
+      const tr = field[r * stride + c + 1];
+      const br = field[(r + 1) * stride + c + 1];
+      const bl = field[(r + 1) * stride + c];
+
+      let code = 0;
+      if (tl < level) code |= 8;
+      if (tr < level) code |= 4;
+      if (br < level) code |= 2;
+      if (bl < level) code |= 1;
+      if (code === 0 || code === 15) continue;
+
+      const x = c * GRID_DX, y = r * GRID_DY;
+      const lerp = (a, b, va, vb) => {
+        if (va === vb) return 0.5;
+        return (level - va) / (vb - va);
+      };
+      const top    = { x: x + GRID_DX * lerp(tl, tr, tl, tr), y };
+      const right  = { x: x + GRID_DX, y: y + GRID_DY * lerp(tr, br, tr, br) };
+      const bottom = { x: x + GRID_DX * lerp(bl, br, bl, br), y: y + GRID_DY };
+      const left   = { x, y: y + GRID_DY * lerp(tl, bl, tl, bl) };
+
+      switch (code) {
+        case 1:  segs.push([left, bottom]); break;
+        case 2:  segs.push([bottom, right]); break;
+        case 3:  segs.push([left, right]); break;
+        case 4:  segs.push([top, right]); break;
+        case 5:  segs.push([left, top]); segs.push([bottom, right]); break;
+        case 6:  segs.push([top, bottom]); break;
+        case 7:  segs.push([left, top]); break;
+        case 8:  segs.push([top, left]); break;
+        case 9:  segs.push([top, bottom]); break;
+        case 10: segs.push([top, right]); segs.push([left, bottom]); break;
+        case 11: segs.push([top, right]); break;
+        case 12: segs.push([left, right]); break;
+        case 13: segs.push([bottom, right]); break;
+        case 14: segs.push([left, bottom]); break;
+      }
+    }
+  }
+  return segs;
+}
+
+// Connect segments into closed polygons (rings).
+function segmentsToRings(segs) {
+  if (segs.length === 0) return [];
+  const EPS = 0.5;
+  const key = p => `${Math.round(p.x / EPS)},${Math.round(p.y / EPS)}`;
+  const map = new Map();
+  segs.forEach(([a, b]) => {
+    const ka = key(a), kb = key(b);
+    if (!map.has(ka)) map.set(ka, []);
+    if (!map.has(kb)) map.set(kb, []);
+    map.get(ka).push({ point: b, other: kb });
+    map.get(kb).push({ point: a, other: ka });
+  });
+
+  const rings = [];
+  const visited = new Set();
+  for (const [startKey, edges] of map) {
+    if (visited.has(startKey)) continue;
+    const ring = [];
+    let curKey = startKey;
+    let curPoint = edges[0].point;  // pick any
+    // Actually, find the start point from the map key
+    const [sx, sy] = startKey.split(',').map(Number);
+    let cur = { x: sx * EPS, y: sy * EPS };
+    ring.push(cur);
+    visited.add(startKey);
+    let prevKey = null;
+    let safety = 0;
+    while (safety < 100000) {
+      safety++;
+      const k = key(cur);
+      const next = (map.get(k) || []).find(e => e.other !== prevKey && !visited.has(e.other));
+      if (!next) break;
+      ring.push(next.point);
+      visited.add(next.other);
+      prevKey = k;
+      cur = next.point;
+      if (next.other === startKey) break;
+    }
+    if (ring.length > 2) rings.push(ring);
+  }
+  return rings;
+}
+
+// Smooth a ring of points using a single pass of midpoint averaging,
+// then emit a cubic-Bezier path that softens the corners.
+function smoothRing(ring) {
+  if (ring.length < 4) return ring;
+  const smoothed = [];
+  for (let i = 0; i < ring.length; i++) {
+    const prev = ring[(i - 1 + ring.length) % ring.length];
+    const curr = ring[i];
+    const next = ring[(i + 1) % ring.length];
+    smoothed.push({
+      x: (prev.x + 2 * curr.x + next.x) / 4,
+      y: (prev.y + 2 * curr.y + next.y) / 4,
+    });
+  }
+  return smoothed;
+}
+
+function ringToPath(ring) {
+  if (ring.length === 0) return '';
+  // Smooth once before emitting
+  const r = smoothRing(ring);
+  // Use quadratic curves between midpoints — produces smooth, closed shapes
+  let d = '';
+  for (let i = 0; i < r.length; i++) {
+    const curr = r[i];
+    const next = r[(i + 1) % r.length];
+    const mid = { x: (curr.x + next.x) / 2, y: (curr.y + next.y) / 2 };
+    if (i === 0) {
+      d += `M${mid.x.toFixed(1)},${mid.y.toFixed(1)}`;
+    } else {
+      d += `Q${curr.x.toFixed(1)},${curr.y.toFixed(1)} ${mid.x.toFixed(1)},${mid.y.toFixed(1)}`;
+    }
+  }
+  d += 'Z';
+  return d;
+}
+
+function isochronePath(field, level) {
+  const segs = marchingSquares(field, level);
+  const rings = segmentsToRings(segs);
+  return rings.map(ringToPath).join(' ');
+}
+
+// Area below a time threshold: count grid cells under threshold, inside Manhattan
+function areaUnderTimeSqMi(field, level) {
+  let cells = 0;
+  for (let r = 0; r <= GRID_ROWS; r++) {
+    for (let c = 0; c <= GRID_COLS; c++) {
+      const idx = r * (GRID_COLS + 1) + c;
+      if (INSIDE_MASK[idx] && field[idx] <= level) cells++;
+    }
+  }
+  // Each sample covers ~ GRID_DX × GRID_DY pixels
+  const px2 = cells * GRID_DX * GRID_DY;
+  return px2 * MI_PER_PIXEL * MI_PER_PIXEL;
+}
+
+// ============================================================
+// RENDERING — main map
+// ============================================================
+
+const svg = document.getElementById('mainMap');
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+function svgEl(tag, attrs = {}, children = []) {
+  const el = document.createElementNS(SVG_NS, tag);
+  Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v));
+  children.forEach(c => el.appendChild(c));
+  return el;
+}
+
+// Build static layers once
+function buildBase() {
+  svg.innerHTML = '';
+
+  // Defs
+  const defs = svgEl('defs');
+  // ClipPath for Manhattan
+  const clipPath = svgEl('clipPath', { id: 'manhattanClip' });
+  clipPath.appendChild(svgEl('path', { d: polygonToPath(MANHATTAN_XY) }));
+  defs.appendChild(clipPath);
+
+  // Radial gradient for isochrone fill (color injected per mode)
+  ['walk', 'subway', 'drive'].forEach(mode => {
+    const grad = svgEl('radialGradient', { id: `iso-grad-${mode}`, cx: '50%', cy: '50%', r: '50%' });
+    const color = getCSSVar(`--${mode}`);
+    grad.appendChild(svgEl('stop', { offset: '0%', 'stop-color': color, 'stop-opacity': '0.55' }));
+    grad.appendChild(svgEl('stop', { offset: '100%', 'stop-color': color, 'stop-opacity': '0.18' }));
+    defs.appendChild(grad);
+  });
+
+  // Soft drop-shadow
+  const filter = svgEl('filter', { id: 'softShadow', x: '-20%', y: '-20%', width: '140%', height: '140%' });
+  filter.appendChild(svgEl('feGaussianBlur', { in: 'SourceAlpha', stdDeviation: '2' }));
+  filter.appendChild(svgEl('feOffset', { dx: '0', dy: '1', result: 'shadowOffset' }));
+  const merge = svgEl('feMerge');
+  merge.appendChild(svgEl('feMergeNode'));
+  merge.appendChild(svgEl('feMergeNode', { in: 'SourceGraphic' }));
+  filter.appendChild(merge);
+  defs.appendChild(filter);
+
+  svg.appendChild(defs);
+
+  // Water background
+  // Water — extends well beyond the SVG_W on the left to fill the wider viewBox
+  svg.appendChild(svgEl('rect', { x: -500, y: 0, width: SVG_W + 1000, height: SVG_H, fill: '#e8eaee' }));
+
+  // Manhattan landmass
+  svg.appendChild(svgEl('path', {
+    d: polygonToPath(MANHATTAN_XY),
+    class: 'manhattan-fill',
+    filter: 'url(#softShadow)'
+  }));
+
+  // Reference street lines (subtle) — just a few key crosstowns + avenues for orientation
+  const streetsGroup = svgEl('g', { 'clip-path': 'url(#manhattanClip)' });
+  const refStreets = [
+    { lat: 40.715, label: 'Canal' },
+    { lat: 40.732, label: '14th' },
+    { lat: 40.750, label: '34th' },
+    { lat: 40.764, label: '57th' },
+    { lat: 40.785, label: '86th' },
+    { lat: 40.806, label: '116th' },
+    { lat: 40.825, label: '155th' },
+  ];
+  refStreets.forEach(s => {
+    const p1 = project(s.lat, LNG_MIN - 0.005);
+    const p2 = project(s.lat, LNG_MAX + 0.005);
+    streetsGroup.appendChild(svgEl('line', {
+      x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y,
+      class: 'street-line'
+    }));
+  });
+  // Couple of avenues — diagonals roughly. Approximate with two: 5th Ave and Broadway diagonal.
+  // 5th Ave runs N-S in geographic terms but the Manhattan grid is tilted ~29°.
+  // We'll draw two parallel lines along Manhattan's grid direction.
+  function avenueAt(crosstownOffsetMi) {
+    // Take a baseline point (Times Square) and move perpendicular by offset miles
+    const base = project(40.76, -73.985);
+    const offsetPx = crosstownOffsetMi / MI_PER_PIXEL;
+    // Crosstown_east unit vector in SVG: (cos29, sin29)
+    const ox = base.x + offsetPx * COS_A;
+    const oy = base.y + offsetPx * SIN_A;
+    // Direction along avenue (uptown): (-sin29, -cos29)? Let me check.
+    // uptown vector = (sin29°, -cos29°) (per earlier reasoning)
+    // Wait, uptown is going north which is decreasing y in SVG. Avenues tilt 29° east of due north.
+    // Direction of "uptown" in SVG: (sin29°, -cos29°)
+    const ux = SIN_A, uy = -COS_A;
+    const long = 2000;
+    return {
+      x1: ox - ux * long, y1: oy - uy * long,
+      x2: ox + ux * long, y2: oy + uy * long
+    };
+  }
+  [-0.25, 0, 0.25, 0.5].forEach(off => {
+    const av = avenueAt(off);
+    streetsGroup.appendChild(svgEl('line', {
+      ...av,
+      class: 'street-line'
+    }));
+  });
+  svg.appendChild(streetsGroup);
+
+  // Street labels along the edge
+  refStreets.forEach(s => {
+    const p = project(s.lat, LNG_MAX + 0.002);
+    streetsGroup.appendChild(svgEl('text', {
+      x: p.x + 3, y: p.y + 3,
+      class: 'street-label',
+      'text-anchor': 'start'
+    }, [document.createTextNode(s.label + ' St')]));
+  });
+
+  // Iso layer (will be populated dynamically)
+  const isoGroup = svgEl('g', { id: 'isoLayer', 'clip-path': 'url(#manhattanClip)' });
+  svg.appendChild(isoGroup);
+
+  // Best-path overlay (drawn on hover, between iso and stations)
+  const pathGroup = svgEl('g', { id: 'pathLayer' });
+  svg.appendChild(pathGroup);
+
+  // Subway station dots — small, visible above iso blobs, clickable as origins
+  const stationsGroup = svgEl('g', { id: 'stationsLayer' });
+  STATIONS.forEach(s => {
+    const g = svgEl('g', { class: 'station-dot', 'data-id': s.id });
+    // Invisible enlarged hit target for easier clicking
+    g.appendChild(svgEl('circle', { cx: s.x, cy: s.y, r: 8, fill: 'transparent', class: 'station-hit' }));
+    // Visible dot
+    g.appendChild(svgEl('circle', { cx: s.x, cy: s.y, r: 2.4, fill: '#fdfaf2', stroke: 'rgba(29,27,23,0.55)', 'stroke-width': '0.7', class: 'station-visible' }));
+    // Hover tooltip via <title>
+    g.appendChild(svgEl('title', {}, [document.createTextNode(s.name)]));
+    g.addEventListener('click', (e) => {
+      e.stopPropagation();
+      selectOrigin({ id: 'station:' + s.id, name: s.name, sub: 'Subway station', lat: s.lat, lng: s.lng });
+    });
+    stationsGroup.appendChild(g);
+  });
+  svg.appendChild(stationsGroup);
+
+  // Ref-rings layer (dashed circles)
+  const refGroup = svgEl('g', { id: 'refLayer' });
+  svg.appendChild(refGroup);
+
+  // Origin marker layer
+  const originGroup = svgEl('g', { id: 'originLayer' });
+  svg.appendChild(originGroup);
+
+  // Origin name markers (small dots for each named origin)
+  const labelGroup = svgEl('g', { id: 'labelLayer' });
+  ORIGINS.forEach(o => {
+    const p = project(o.lat, o.lng);
+    const g = svgEl('g', { class: 'origin-marker-icon', 'data-id': o.id });
+    g.appendChild(svgEl('circle', { cx: p.x, cy: p.y, r: 3 }));
+    g.appendChild(svgEl('text', {
+      x: p.x + 6, y: p.y + 3.5
+    }, [document.createTextNode(o.name)]));
+    g.addEventListener('click', () => selectOrigin(o));
+    labelGroup.appendChild(g);
+  });
+  svg.appendChild(labelGroup);
+
+  // Iso labels live in their own non-clipped layer so pills near Manhattan's
+  // edge stay fully visible (the iso polygon layer is clipped to the island).
+  const isoLabelGroup = svgEl('g', { id: 'isoLabelLayer' });
+  svg.appendChild(isoLabelGroup);
+}
+
+function polygonToPath(pts) {
+  return 'M' + pts.map(p => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join('L') + 'Z';
+}
+
+function getCSSVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+// ============================================================
+// DYNAMIC RENDERING — iso layer + origin
+// ============================================================
+
+let currentOrigin = ORIGINS[0]; // Times Square
+let currentMode = 'subway';
+let currentTimeBudget = 20;     // controlled by the slider
+let lastFields = null;          // {walk, subway, drive} cached per current origin
+
+function getIsoLevels() {
+  // Three nested rings scaled to the time budget
+  const t = currentTimeBudget;
+  return [
+    Math.max(2, Math.round(t / 3)),
+    Math.max(3, Math.round(2 * t / 3)),
+    t,
+  ];
+}
+
+// Time at an SVG point, looked up in the cached field for the current mode
+function timeAtPoint(x, y) {
+  const field = lastFields && lastFields[currentMode];
+  if (!field) return 9999;
+  const c = Math.max(0, Math.min(GRID_COLS, Math.round(x / GRID_DX)));
+  const r = Math.max(0, Math.min(GRID_ROWS, Math.round(y / GRID_DY)));
+  return field[r * (GRID_COLS + 1) + c];
+}
+
+// Run Dijkstra for all three modes and cache the fields. Heavy.
+function recomputeFields() {
+  const o = project(currentOrigin.lat, currentOrigin.lng);
+  const fields = {};
+  // Run non-current modes first, then currentMode last so lastDijkstra ends
+  // up pointing at the current-mode predecessors (used by hover path overlay).
+  if (currentMode !== 'walk')   fields.walk   = computeTimeField(o.x, o.y, 'walk');
+  if (currentMode !== 'subway') fields.subway = computeTimeField(o.x, o.y, 'subway');
+  if (currentMode !== 'bike')   fields.bike   = computeTimeField(o.x, o.y, 'bike');
+  if (currentMode !== 'drive')  fields.drive  = computeTimeField(o.x, o.y, 'drive');
+  fields[currentMode] = computeTimeField(o.x, o.y, currentMode);
+  lastFields = fields;
+}
+
+// Redraw everything that depends on time budget. Cheap — reuses lastFields.
+function renderIsochrones() {
+  if (!lastFields) recomputeFields();
+  const o = project(currentOrigin.lat, currentOrigin.lng);
+  const field = lastFields[currentMode];
+  const isoLevels = getIsoLevels();
+  const isoLayer = document.getElementById('isoLayer');
+  isoLayer.innerHTML = '';
+  const isoLabelLayer = document.getElementById('isoLabelLayer');
+  isoLabelLayer.innerHTML = '';
+
+  // Draw blobs in descending order so largest is at the back
+  const descending = [...isoLevels].sort((a, b) => b - a);
+  descending.forEach((level, i) => {
+    const d = isochronePath(field, level);
+    if (!d) return;
+    const color = getCSSVar(`--${currentMode}`);
+    // Outermost ring (i=0) is most transparent
+    const opacity = 0.18 + i * 0.18;
+    isoLayer.appendChild(svgEl('path', {
+      d,
+      class: 'iso-fill',
+      fill: color,
+      'fill-opacity': opacity,
+      stroke: color,
+      'stroke-opacity': 0.6,
+      'stroke-width': 0.8,
+      'fill-rule': 'evenodd'
+    }));
+  });
+
+  // Iso labels — for each level, pick the direction with the longest reach
+  // and place the label deep into THAT level's "donut" (outside any smaller
+  // ring). Each pill is tinted to match its own zone.
+  const baseDirections = [
+    { x:  SIN_A, y: -COS_A },                                                          // uptown
+    { x: -SIN_A, y:  COS_A },                                                          // downtown
+    { x:  Math.sin(MANHATTAN_ANGLE_RAD + 0.4), y: -Math.cos(MANHATTAN_ANGLE_RAD + 0.4) },
+    { x:  Math.sin(MANHATTAN_ANGLE_RAD - 0.4), y: -Math.cos(MANHATTAN_ANGLE_RAD - 0.4) },
+    { x: -Math.sin(MANHATTAN_ANGLE_RAD - 0.4), y:  Math.cos(MANHATTAN_ANGLE_RAD - 0.4) },
+    { x: -Math.sin(MANHATTAN_ANGLE_RAD + 0.4), y:  Math.cos(MANHATTAN_ANGLE_RAD + 0.4) },
+  ];
+
+  const placedLabels = [];
+
+  // Place outermost ring first so it can claim the longest reach; inner rings
+  // then fill remaining directions.
+  const placementOrder = isoLevels
+    .map((level, idx) => ({ level, idx }))
+    .sort((a, b) => b.level - a.level);  // largest level first
+
+  // Pill fill is a SOLID color (no opacity) so it looks the same regardless
+  // of which iso ring is behind it. Each color is the mode hue blended with
+  // the cream Manhattan background at a fixed alpha that visually matches
+  // its zone, then flattened to a solid swatch.
+  const modeColor = getCSSVar(`--${currentMode}`);
+  function blendOnCream(hex, alpha) {
+    const r1 = parseInt(hex.slice(1, 3), 16);
+    const g1 = parseInt(hex.slice(3, 5), 16);
+    const b1 = parseInt(hex.slice(5, 7), 16);
+    const r2 = 253, g2 = 250, b2 = 242;
+    const r = Math.round(r2 * (1 - alpha) + r1 * alpha);
+    const g = Math.round(g2 * (1 - alpha) + g1 * alpha);
+    const b = Math.round(b2 * (1 - alpha) + b1 * alpha);
+    return `rgb(${r},${g},${b})`;
+  }
+  // Saturated → pale, mapped to [innermost, mid, outermost]
+  const pillAlphas    = [0.90, 0.62, 0.36];
+  const strokeAlphas  = [1.00, 0.85, 0.65];
+
+  // Collect placement results so we can render them in level order after.
+  const labelPlacements = new Array(isoLevels.length).fill(null);
+
+  placementOrder.forEach(({ level, idx }) => {
+    const ox = o.x, oy = o.y;
+    const smallerLevel = idx > 0 ? isoLevels[idx - 1] : 0;
+
+    let best = null, bestScore = -Infinity;
+    let fallback = null, fallbackScore = -Infinity;  // used if no in-donut spot exists
+    for (const dir of baseDirections) {
+      let rimDist = 0, rimTime = 0;
+      for (let d = 5; d < 1200; d += 4) {
+        const px = ox + dir.x * d;
+        const py = oy + dir.y * d;
+        if (!pointInPolygon(px, py, MANHATTAN_XY)) break;
+        const t = timeAtPoint(px, py);
+        if (t > level) break;
+        rimDist = d;
+        rimTime = t;
+      }
+      if (rimDist < 28) continue;
+
+      // Primary: find a spot inside the donut (time > smallerLevel, ≤ level)
+      let inDonut = null;
+      for (let f = 0.92; f >= 0.30; f -= 0.04) {
+        const lx = ox + dir.x * rimDist * f;
+        const ly = oy + dir.y * rimDist * f;
+        if (!pointInPolygon(lx, ly, MANHATTAN_XY)) continue;
+        const t = timeAtPoint(lx, ly);
+        if (t <= level && t > smallerLevel) { inDonut = { lx, ly }; break; }
+      }
+      // Fallback: deepest still-reachable spot along this direction
+      const flx = ox + dir.x * rimDist * 0.92;
+      const fly = oy + dir.y * rimDist * 0.92;
+
+      const candidate = inDonut || (pointInPolygon(flx, fly, MANHATTAN_XY) ? { lx: flx, ly: fly } : null);
+      if (!candidate) continue;
+
+      const distFromOthers = placedLabels.length
+        ? Math.min(...placedLabels.map(p => Math.hypot(p.x - candidate.lx, p.y - candidate.ly)))
+        : 1000;
+      if (distFromOthers < 36) continue;
+      const score = rimDist + distFromOthers * 0.5;
+
+      if (inDonut) {
+        if (score > bestScore) { bestScore = score; best = candidate; }
+      } else {
+        if (score > fallbackScore) { fallbackScore = score; fallback = candidate; }
+      }
+    }
+
+    const chosen = best || fallback;
+    if (chosen) {
+      placedLabels.push({ x: chosen.lx, y: chosen.ly });
+      labelPlacements[idx] = chosen;
+    }
+  });
+
+  labelPlacements.forEach((best, idx) => {
+    if (!best) return;
+    const level = isoLevels[idx];
+    const labelText = `${Math.round(level)} MIN`;
+    const fontSize = 10.5;
+    const charW = fontSize * 0.6;
+    const padX = 6, padY = 3;
+    const w = labelText.length * charW + padX * 2;
+    const h = fontSize + padY * 2;
+    // Solid pre-blended fill so the pill looks the same on any background.
+    const fillColor   = blendOnCream(modeColor, pillAlphas[idx] ?? 0.65);
+    const strokeColor = blendOnCream(modeColor, strokeAlphas[idx] ?? 0.85);
+    isoLabelLayer.appendChild(svgEl('rect', {
+      x: (best.lx - w / 2).toFixed(1),
+      y: (best.ly - h / 2 - 0.5).toFixed(1),
+      width: w.toFixed(1),
+      height: h.toFixed(1),
+      rx: 4,
+      fill: fillColor,
+      stroke: strokeColor,
+      'stroke-width': '1'
+    }));
+    isoLabelLayer.appendChild(svgEl('text', {
+      x: best.lx, y: best.ly + fontSize * 0.35,
+      class: 'iso-label',
+      'text-anchor': 'middle',
+      fill: '#000',
+      'font-size': fontSize,
+      'font-weight': '700',
+      'letter-spacing': '0.06em'
+    }, [document.createTextNode(labelText)]));
+  });
+
+  // Reference distance circles removed per design — the iso polygons alone
+  // tell the time-distance story without the visual clutter.
+  const refLayer = document.getElementById('refLayer');
+  refLayer.innerHTML = '';
+
+  // Origin marker — single red dot, no big surrounding glow
+  const originLayer = document.getElementById('originLayer');
+  originLayer.innerHTML = '';
+  originLayer.appendChild(svgEl('circle', {
+    cx: o.x, cy: o.y, r: 5.5,
+    class: 'origin-dot'
+  }));
+
+  // Update active origin marker icon
+  document.querySelectorAll('.origin-marker-icon').forEach(el => {
+    el.classList.toggle('active', el.getAttribute('data-id') === currentOrigin.id);
+  });
+
+  // Update info card numbers
+  document.getElementById('originName').textContent = currentOrigin.name;
+  document.getElementById('originSub').textContent = currentOrigin.sub;
+
+  // Reachable areas at the slider's time budget, for each mode.
+  const budget = currentTimeBudget;
+  const budgetDisplay = Math.round(budget);
+  const fields = lastFields;
+  const areas = {
+    walk:   areaUnderTimeSqMi(fields.walk,   budget),
+    subway: areaUnderTimeSqMi(fields.subway, budget),
+    bike:   areaUnderTimeSqMi(fields.bike,   budget),
+    drive:  areaUnderTimeSqMi(fields.drive,  budget),
+  };
+  document.getElementById('reachWalk').textContent = areas.walk.toFixed(1);
+  document.getElementById('reachSubway').textContent = areas.subway.toFixed(1);
+  document.getElementById('reachBike').textContent = areas.bike.toFixed(1);
+  document.getElementById('reachDrive').textContent = areas.drive.toFixed(1);
+
+  document.getElementById('reachArea').textContent = areas[currentMode].toFixed(1);
+
+  // Update the "In X minutes" label to match the slider
+  const reachLabel = document.querySelector('.info-card-label[data-reach-label]');
+  if (reachLabel) reachLabel.textContent = `In ${budgetDisplay} minutes you reach`;
+
+  const ratio = areas.subway / Math.max(areas.walk, 0.1);
+  document.getElementById('warpRatio').textContent = ratio.toFixed(1) + '×';
+  document.getElementById('warpDesc').textContent =
+    `Subway lets you cover roughly ${ratio.toFixed(1)}× more ground than walking from this point in the same ${budgetDisplay} minutes.`;
+
+  if (currentMode === 'subway') {
+    document.getElementById('reachVs').textContent =
+      `That's ${(areas.subway / Math.max(areas.walk, 0.1)).toFixed(1)}× the walking reach.`;
+  } else if (currentMode === 'drive') {
+    document.getElementById('reachVs').textContent =
+      `Walking would reach ${areas.walk.toFixed(1)}; subway ${areas.subway.toFixed(1)}.`;
+  } else if (currentMode === 'bike') {
+    document.getElementById('reachVs').textContent =
+      `That's ${(areas.bike / Math.max(areas.walk, 0.1)).toFixed(1)}× the walking reach.`;
+  } else {
+    document.getElementById('reachVs').textContent =
+      `That's the area you can cover on foot in ${budgetDisplay} minutes.`;
+  }
+
+  // Render mini-comparison at the same time budget so all four modes line up
+  renderMini('miniWalk',   fields.walk,   getCSSVar('--walk'),   budget);
+  renderMini('miniSubway', fields.subway, getCSSVar('--subway'), budget);
+  renderMini('miniBike',   fields.bike,   getCSSVar('--bike'),   budget);
+  renderMini('miniDrive',  fields.drive,  getCSSVar('--drive'),  budget);
+}
+
+// Render a minimap with one mode at a chosen time budget
+function renderMini(elementId, field, color, budget) {
+  const miniSvg = document.getElementById(elementId);
+  miniSvg.innerHTML = '';
+  miniSvg.setAttribute('viewBox', `0 0 ${SVG_W} ${SVG_H}`);
+
+  // Background
+  miniSvg.appendChild(svgEl('rect', { x: 0, y: 0, width: SVG_W, height: SVG_H, fill: '#f0f2f5' }));
+
+  // Manhattan
+  miniSvg.appendChild(svgEl('path', {
+    d: polygonToPath(MANHATTAN_XY),
+    fill: '#fdfaf2',
+    stroke: 'rgba(29,27,23,0.2)',
+    'stroke-width': '0.6'
+  }));
+
+  // Defs
+  const defs = svgEl('defs');
+  const clip = svgEl('clipPath', { id: `mini-clip-${elementId}` });
+  clip.appendChild(svgEl('path', { d: polygonToPath(MANHATTAN_XY) }));
+  defs.appendChild(clip);
+  miniSvg.appendChild(defs);
+
+  const group = svgEl('g', { 'clip-path': `url(#mini-clip-${elementId})` });
+
+  // Isochrone fill at the chosen time budget
+  const pathD = isochronePath(field, budget);
+  if (pathD) {
+    group.appendChild(svgEl('path', {
+      d: pathD,
+      fill: color,
+      'fill-opacity': '0.4',
+      stroke: color,
+      'stroke-width': '1',
+      'fill-rule': 'evenodd'
+    }));
+  }
+  miniSvg.appendChild(group);
+
+  // Origin
+  const o = project(currentOrigin.lat, currentOrigin.lng);
+  miniSvg.appendChild(svgEl('circle', {
+    cx: o.x, cy: o.y, r: 5,
+    fill: '#fff', stroke: 'var(--ink)', 'stroke-width': '1.5'
+  }));
+  miniSvg.appendChild(svgEl('circle', {
+    cx: o.x, cy: o.y, r: 2.5,
+    fill: 'var(--ink)'
+  }));
+}
+
+// ============================================================
+// INTERACTIONS
+// ============================================================
+
+function selectOrigin(originObj) {
+  currentOrigin = originObj;
+  recomputeFields();  // origin changed → re-run Dijkstra for all modes
+  renderIsochrones();
+}
+
+function selectMode(mode) {
+  currentMode = mode;
+  document.querySelectorAll('#modeChips .chip').forEach(c => {
+    c.classList.toggle('active', c.getAttribute('data-mode') === mode);
+  });
+  // Mark which mini-card matches the active mode
+  document.querySelectorAll('.map-mini-card').forEach(card => {
+    card.classList.toggle('is-current', card.getAttribute('data-mode-label') === mode);
+  });
+  // lastDijkstra needs to reflect the new currentMode for the hover tooltip;
+  // recompute so the current mode is the last one run.
+  recomputeFields();
+  renderIsochrones();
+}
+
+function setTimeBudget(mins) {
+  currentTimeBudget = mins;
+  // Display always rounds to an integer so users never see "20.5"
+  const displayMins = Math.round(mins);
+  document.getElementById('sliderValue').textContent = displayMins;
+  document.querySelectorAll('.mini-budget').forEach(el => el.textContent = displayMins);
+  // No Dijkstra recompute needed — just redraw using cached fields
+  renderIsochrones();
+}
+
+// Build origin chip row
+// Origin chip row removed — users now select origins by clicking the
+// labeled markers on the map itself. This block kept as a no-op for safety.
+const originChips = document.getElementById('originChips');
+if (originChips) {
+  ORIGINS.forEach((o, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'chip' + (i === 0 ? ' active' : '');
+    btn.textContent = o.name;
+    btn.setAttribute('data-id', o.id);
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#originChips .chip').forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+      selectOrigin(o);
+    });
+    originChips.appendChild(btn);
+  });
+}
+
+document.querySelectorAll('#modeChips .chip').forEach(c => {
+  c.addEventListener('click', () => selectMode(c.getAttribute('data-mode')));
+});
+
+// Mini-card mode selectors — click to switch main-map mode
+document.querySelectorAll('.map-mini-card').forEach(card => {
+  card.addEventListener('click', () => {
+    const m = card.getAttribute('data-mode-label');
+    if (m) selectMode(m);
+  });
+});
+// Mark initial active mini
+document.querySelectorAll('.map-mini-card').forEach(card => {
+  card.classList.toggle('is-current', card.getAttribute('data-mode-label') === currentMode);
+});
+
+// Time-budget slider — runs only the cheap redraw (no new Dijkstra)
+const timeSlider = document.getElementById('timeSlider');
+timeSlider.addEventListener('input', () => {
+  // Manual interaction pauses the animation
+  stopAnimation();
+  setTimeBudget(parseInt(timeSlider.value, 10));
+});
+
+// ============================================================
+// PLAY/PAUSE — sweeps 0 → 90 → 0 at 0.5 min / 0.5 s (smoother)
+// ============================================================
+let animationDirection = 0.5;
+let animationTimer = null;
+const ANIM_STEP_MS = 300;
+const SLIDER_MIN = 0, SLIDER_MAX = 60;
+
+const playPauseBtn = document.getElementById('playPauseBtn');
+const ppIcon = playPauseBtn.querySelector('.pp-icon');
+const ppText = playPauseBtn.querySelector('.pp-text');
+
+function tickAnimation() {
+  let next = currentTimeBudget + animationDirection;
+  if (next >= SLIDER_MAX) { next = SLIDER_MAX; animationDirection = -0.5; }
+  if (next <= SLIDER_MIN) { next = SLIDER_MIN; animationDirection = 0.5; }
+  timeSlider.value = String(next);
+  setTimeBudget(next);
+}
+
+function startAnimation() {
+  if (animationTimer) return;
+  animationTimer = setInterval(tickAnimation, ANIM_STEP_MS);
+  ppIcon.textContent = '⏸';
+  ppText.textContent = 'Pause';
+  playPauseBtn.classList.remove('paused');
+}
+
+function stopAnimation() {
+  if (animationTimer) {
+    clearInterval(animationTimer);
+    animationTimer = null;
+  }
+  ppIcon.textContent = '▶';
+  ppText.textContent = 'Play';
+  playPauseBtn.classList.add('paused');
+}
+
+playPauseBtn.addEventListener('click', () => {
+  if (animationTimer) stopAnimation();
+  else startAnimation();
+});
+
+// Time-of-day segmented control
+function setTimeOfDay(id) {
+  const idx = TOD_IDS.indexOf(id);
+  if (idx < 0 || idx === currentTodIdx) return;
+  currentTodIdx = idx;
+  document.querySelectorAll('.tod-seg').forEach(b => {
+    b.classList.toggle('is-current', b.getAttribute('data-tod') === id);
+  });
+  document.getElementById('todLabel').textContent = TIME_WINDOWS[idx].label;
+  // Drive + subway depend on time-of-day; clear cached fields so they re-run.
+  // (Walking is unaffected, but recomputeFields will pull walk from cache.)
+  for (const k of Array.from(dijkstraCache.keys())) {
+    if (k.endsWith('static')) continue;  // walk entries
+    dijkstraCache.delete(k);
+  }
+  recomputeFields();
+  renderIsochrones();
+}
+document.querySelectorAll('.tod-seg').forEach(btn => {
+  btn.addEventListener('click', () => setTimeOfDay(btn.getAttribute('data-tod')));
+});
+
+// Start animation on page load
+startAnimation();
+
+// Hover on SVG to show travel time at cursor
+const tooltipEl = document.getElementById('mapTooltip');
+const mapContainer = document.querySelector('.map-container');
+
+function svgEventToCoords(e) {
+  // Use SVG's native coordinate transform so it stays correct regardless of
+  // the viewBox or preserveAspectRatio in use.
+  const pt = svg.createSVGPoint();
+  pt.x = e.clientX;
+  pt.y = e.clientY;
+  const ctm = svg.getScreenCTM();
+  if (!ctm) {
+    // Fallback (shouldn't happen): map via bounding rect + assumed viewBox
+    const rect = svg.getBoundingClientRect();
+    const scale = SVG_W / rect.width;
+    return { x: (e.clientX - rect.left) * scale, y: (e.clientY - rect.top) * scale, cx: e.clientX, cy: e.clientY };
+  }
+  const sp = pt.matrixTransform(ctm.inverse());
+  return { x: sp.x, y: sp.y, cx: e.clientX, cy: e.clientY };
+}
+
+// Convert a node id to SVG (x, y) for path rendering
+function nodeXY(nodeId) {
+  if (nodeId < NUM_CELLS) {
+    const r = Math.floor(nodeId / (GRID_COLS + 1));
+    const c = nodeId % (GRID_COLS + 1);
+    return { x: c * GRID_DX, y: r * GRID_DY };
+  }
+  // Platform node — locate the station it belongs to
+  const p = PLATFORMS[nodeId - NUM_CELLS];
+  const s = STATIONS[p.stationIdx];
+  return { x: s.x, y: s.y };
+}
+
+function describeSegment(seg) {
+  const mins = Math.max(1, Math.round(seg.cost));
+  const stopWord = seg.count === 1 ? 'stop' : 'stops';
+  switch (seg.kind) {
+    case 'walk':     return `${mins} min walk`;
+    case 'drive':    return `${mins} min drive`;
+    case 'board':    return `board train (${mins} min wait+walk)`;
+    case 'alight':   return `${mins} min walk from station`;
+    case 'transfer': return `${mins} min transfer`;
+    case 'ride':     return `${mins} min on the ${seg.line} (${seg.count} ${stopWord})`;
+    default: return `${mins} min`;
+  }
+}
+
+const pathLayer = () => document.getElementById('pathLayer');
+
+function drawBestPath(targetCell) {
+  const layer = pathLayer();
+  if (!layer) return;
+  layer.innerHTML = '';
+  if (!lastDijkstra || lastDijkstra.dist[targetCell] >= 9000) return;
+
+  const steps = tracePath(targetCell, lastDijkstra);
+  if (steps.length === 0) return;
+
+  // Draw path as connected segments, coloured by edge type
+  const colorFor = (e) => {
+    if (e.type === 'walk') return getCSSVar('--walk');
+    if (e.type === 'drive') return getCSSVar('--drive');
+    if (e.isBoard || e.isAlight) return getCSSVar('--walk');
+    if (e.isTransfer) return getCSSVar('--subway');
+    return getCSSVar('--subway');
+  };
+
+  steps.forEach(s => {
+    const a = nodeXY(s.from);
+    const b = nodeXY(s.to);
+    layer.appendChild(svgEl('line', {
+      x1: a.x, y1: a.y, x2: b.x, y2: b.y,
+      stroke: colorFor(s.edge),
+      'stroke-width': s.edge.type === 'subway' && !s.edge.isBoard && !s.edge.isAlight && !s.edge.isTransfer ? '2.4' : '1.6',
+      'stroke-linecap': 'round',
+      'stroke-opacity': '0.92',
+    }));
+  });
+}
+
+function clearBestPath() {
+  const layer = pathLayer();
+  if (layer) layer.innerHTML = '';
+}
+
+svg.addEventListener('mousemove', (e) => {
+  const c = svgEventToCoords(e);
+  if (!pointInPolygon(c.x, c.y, MANHATTAN_XY)) {
+    tooltipEl.style.display = 'none';
+    clearBestPath();
+    return;
+  }
+  if (!lastDijkstra) { tooltipEl.style.display = 'none'; return; }
+
+  const cellNode = nearestCell(c.x, c.y);
+  const t = lastDijkstra.dist[cellNode];
+  if (t >= 9000) { tooltipEl.style.display = 'none'; clearBestPath(); return; }
+
+  const steps = tracePath(cellNode, lastDijkstra);
+  const segs = summarizePath(steps);
+  const modeLabel = { walk: 'walking', subway: 'best subway+walk', drive: 'driving' }[currentMode];
+  const segLines = segs.map(s => `<div class="tooltip-seg">${describeSegment(s)}</div>`).join('');
+  tooltipEl.innerHTML = `<strong>${Math.round(t)} min</strong> ${modeLabel}<div class="tooltip-path">${segLines}</div>`;
+
+  const containerRect = mapContainer.getBoundingClientRect();
+  tooltipEl.style.display = 'block';
+  tooltipEl.style.left = (e.clientX - containerRect.left + 14) + 'px';
+  tooltipEl.style.top = (e.clientY - containerRect.top + 14) + 'px';
+
+  drawBestPath(cellNode);
+});
+svg.addEventListener('mouseleave', () => {
+  tooltipEl.style.display = 'none';
+  clearBestPath();
+});
+
+// Click on the main SVG to set custom origin
+svg.addEventListener('click', (e) => {
+  // Skip if click was on an origin-marker (those have their own handlers)
+  if (e.target.closest('.origin-marker-icon')) return;
+
+  const c = svgEventToCoords(e);
+  const x = c.x, y = c.y;
+  if (!pointInPolygon(x, y, MANHATTAN_XY)) return;
+
+  const { lat, lng } = unproject(x, y);
+  const customOrigin = {
+    id: 'custom',
+    name: 'Custom point',
+    sub: `${lat.toFixed(4)}, ${lng.toFixed(4)}`,
+    lat, lng
+  };
+  currentOrigin = customOrigin;
+  document.querySelectorAll('#originChips .chip').forEach(c => c.classList.remove('active'));
+  recomputeFields();  // origin changed → re-run Dijkstra
+  renderIsochrones();
+});
+
+// ============================================================
+// INIT
+// ============================================================
+buildBase();
+renderIsochrones();
+</script>
+
+</body>
+</html>
