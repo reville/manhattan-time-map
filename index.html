@@ -253,6 +253,12 @@
   }
   #todLabel { color: var(--clay); font-weight: 600; }
 
+  .control-group.disabled {
+    opacity: 0.35;
+    pointer-events: none;
+    filter: grayscale(1);
+  }
+
   /* Map layout */
   .map-layout {
     display: grid;
@@ -677,11 +683,6 @@
 </head>
 <body>
 
-<header class="topbar">
-  <a class="topbar-brand" href="index.html">Agent Reports</a>
-  <span class="topbar-meta">Visual experiment · May 2026</span>
-</header>
-
 <section class="hero">
   <h1 class="hero-title">Time-distance map of Manhattan</h1>
 </section>
@@ -782,10 +783,6 @@
       </ul>
     </div>
   </section>
-
-  <div class="footer">
-    Visual experiment by Nicholas Reville. Built with hand-traced geometry and a back-of-envelope routing model. Updated May 14, 2026.
-  </div>
 
 </div>
 
@@ -2218,10 +2215,20 @@ function renderIsochrones() {
   const reachLabel = document.querySelector('.info-card-label[data-reach-label]');
   if (reachLabel) reachLabel.textContent = `In ${budgetDisplay} minutes you reach`;
 
-  const ratio = areas.subway / Math.max(areas.walk, 0.1);
-  document.getElementById('warpRatio').textContent = ratio.toFixed(1) + '×';
-  document.getElementById('warpDesc').textContent =
-    `Subway lets you cover roughly ${ratio.toFixed(1)}× more ground than walking from this point in the same ${budgetDisplay} minutes.`;
+  // Warp ratio uses the active mode against walking
+  const MODE_NAMES = { walk: 'Walking', subway: 'Subway', bike: 'Biking', drive: 'Driving' };
+  const VS_VERB = { subway: 'Subway lets', bike: 'Biking lets', drive: 'Driving lets' };
+  if (currentMode === 'walk') {
+    document.getElementById('warpRatio').textContent = '1.0×';
+    document.getElementById('warpDesc').textContent =
+      `Walking from this point covers ${areas.walk.toFixed(1)} sq miles in ${budgetDisplay} minutes.`;
+  } else {
+    const modeArea = areas[currentMode];
+    const ratio = modeArea / Math.max(areas.walk, 0.1);
+    document.getElementById('warpRatio').textContent = ratio.toFixed(1) + '×';
+    document.getElementById('warpDesc').textContent =
+      `${VS_VERB[currentMode]} you cover roughly ${ratio.toFixed(1)}× more ground than walking from this point in the same ${budgetDisplay} minutes.`;
+  }
 
   if (currentMode === 'subway') {
     document.getElementById('reachVs').textContent =
@@ -2235,6 +2242,13 @@ function renderIsochrones() {
   } else {
     document.getElementById('reachVs').textContent =
       `That's the area you can cover on foot in ${budgetDisplay} minutes.`;
+  }
+
+  // Traffic estimate only meaningfully affects driving — gray it out otherwise
+  const controlsWrap = document.querySelector('.controls');
+  if (controlsWrap) {
+    const todGroup = controlsWrap.querySelectorAll('.control-group')[1];
+    if (todGroup) todGroup.classList.toggle('disabled', currentMode !== 'drive');
   }
 
   // Render mini-comparison at the same time budget so all four modes line up
